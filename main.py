@@ -108,8 +108,8 @@ menus = {
 }
 
 # Key repeat system
-KEY_REPEAT_DELAY = 750  # 3/4 second initial delay (milliseconds)
-KEY_REPEAT_INTERVAL = 250  # 1/4 second repeat interval (milliseconds)
+KEY_REPEAT_DELAY = 500  # 3/4 second initial delay (milliseconds)
+KEY_REPEAT_INTERVAL = 75  # 1/4 second repeat interval (milliseconds)
 key_states = {}  # Track key press states and timers
 last_key_event = None  # Track the last processed key for repeats
 
