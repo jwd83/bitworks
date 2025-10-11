@@ -108,9 +108,40 @@ When extending this codebase:
 - `.python-version`: Python version specification for consistency
 - `.venv/`: Virtual environment (auto-created by uv)
 
+## Text Selection and Clipboard
+
+### **Selection Methods**:
+- **Shift + Arrow Keys**: Hold Shift while using arrow keys to create text selections
+- **Ctrl + A**: Select all text in the document
+
+### **Clipboard Operations**:
+- **Copy**: Ctrl + C or F2 → F2 (Copy menu)
+- **Cut**: Ctrl + X or F2 → F1 (Cut menu)
+- **Paste**: Ctrl + V or F2 → F3 (Paste menu)
+
+### **Selection Features**:
+- **Visual Highlighting**: Selected text is highlighted with darker green background
+- **Multi-line Selection**: Supports text selection across multiple lines
+- **Smart Deletion**: Typing or pressing Delete/Backspace replaces selected text
+- **Auto-clear**: Selection clears when cursor moves without Shift pressed
+
+### **Enhanced Navigation**:
+- **Home/End Keys**: Jump to beginning/end of current line
+- **Delete Key**: Delete character after cursor or selected text
+- **Extended Arrow Movement**: Arrow keys can move between lines at boundaries
+
+## Key Repeat System
+
+- **Initial Delay**: 750ms (3/4 second) before key starts repeating
+- **Repeat Rate**: 250ms (1/4 second) between repeat events
+- **Smart Filtering**: Only navigation and text editing keys repeat (not function keys)
+- **Supported Keys**: Arrow keys, Backspace, Delete, Home, End, and printable characters
+
 ## Technical Notes
 
 - The application uses pygame-ce (Community Edition) rather than standard pygame for better maintained libraries and additional features
 - Boot sequence timing can be adjusted via `boot_speed` variable
 - Text editor supports unlimited document length (limited only by memory)
 - Cursor blinking is implemented with a timer-based visibility toggle
+- Text selection uses coordinate-based highlighting for precise visual feedback
+- Clipboard operations work with both single-line and multi-line text
