@@ -1,4 +1,4 @@
-import pygame, sys, time, random
+import pygame, sys, time, random, os
 
 pygame.init()
 pygame.mixer.init()
@@ -73,6 +73,47 @@ menus = {
     "F3": ["About"],
 }
 
+# File operations
+def ensure_workspace_dir():
+    """Create workspace directory if it doesn't exist"""
+    if not os.path.exists("workspace"):
+        os.makedirs("workspace")
+
+def save_file():
+    """Save current text buffer to workspace/1.v"""
+    try:
+        ensure_workspace_dir()
+        with open("workspace/1.v", "w", encoding="utf-8") as f:
+            f.write("\n".join(text_buffer))
+        return True
+    except Exception as e:
+        print(f"Error saving file: {e}")
+        return False
+
+def load_file():
+    """Load text from workspace/1.v if it exists"""
+    global text_buffer, cursor_x, cursor_y
+    try:
+        if os.path.exists("workspace/1.v"):
+            with open("workspace/1.v", "r", encoding="utf-8") as f:
+                content = f.read()
+                if content:
+                    text_buffer = content.split("\n")
+                else:
+                    text_buffer = [""]
+                cursor_x, cursor_y = 0, 0
+                return True
+        return False
+    except Exception as e:
+        print(f"Error loading file: {e}")
+        return False
+
+def new_file():
+    """Clear the text buffer for a new file"""
+    global text_buffer, cursor_x, cursor_y
+    text_buffer = [""]
+    cursor_x, cursor_y = 0, 0
+
 def handle_menu_action(menu, item_index):
     """Handle menu item selection"""
     global running
@@ -81,18 +122,32 @@ def handle_menu_action(menu, item_index):
         menu_items = menus["F1"]
         if item_index < len(menu_items):
             action = menu_items[item_index]
-            if action == "Exit":
+            if action == "New":
+                new_file()
+                print("New file created")
+            elif action == "Open":
+                if load_file():
+                    print("File loaded from workspace/1.v")
+                else:
+                    print("No file found at workspace/1.v")
+            elif action == "Save":
+                if save_file():
+                    print("File saved to workspace/1.v")
+                else:
+                    print("Error saving file")
+            elif action == "Exit":
                 return False  # Signal to quit
-            # Add other File menu actions here as needed
     elif menu == "F2":
         menu_items = menus["F2"]
         if item_index < len(menu_items):
             action = menu_items[item_index]
+            print(f"Edit action: {action} (not yet implemented)")
         # Add Edit menu actions here as needed
     elif menu == "F3":
         menu_items = menus["F3"]
         if item_index < len(menu_items):
             action = menu_items[item_index]
+            print(f"Help action: {action} (not yet implemented)")
         # Add Help menu actions here as needed
     
     return True  # Continue running
