@@ -90,12 +90,89 @@ current_file = "1.v"  # Currently opened file
 
 # Email inbox state
 emails = [
-    {"from": "system@bitworks", "subject": "Welcome to BitWorks IDE", "read": False},
-    {"from": "compiler@bitworks", "subject": "Synthesis Report Available", "read": True},
-    {"from": "debugger@bitworks", "subject": "Waveform Analysis Complete", "read": False},
+    {
+        "from": "system@bitworks", 
+        "subject": "Welcome to BitWorks IDE", 
+        "read": False,
+        "date": "2025-10-11 09:00",
+        "content": """Welcome to BitWorks IDE v1.0!
+
+This integrated development environment is designed for Verilog development and hardware design.
+
+Features:
+- Multi-panel workspace with file browser
+- Syntax highlighting for Verilog (.v) and Assembly (.s) files
+- Integrated message system for build reports and notifications
+- Full text editing with modern features
+
+Press TAB to cycle between panels, or use the View menu (F3) to navigate.
+
+Happy coding!
+
+--
+BitWorks System"""
+    },
+    {
+        "from": "compiler@bitworks", 
+        "subject": "Synthesis Report Available", 
+        "read": True,
+        "date": "2025-10-11 14:32",
+        "content": """Synthesis completed successfully.
+
+Module: counter.v
+Target: FPGA XC7A35T
+Status: PASSED
+
+Resource Utilization:
+- LUTs: 8/20800 (<1%)
+- FFs: 8/41600 (<1%)
+- Block RAM: 0/50 (0%)
+- DSPs: 0/90 (0%)
+
+Timing Analysis:
+- Max Frequency: 450.23 MHz
+- Setup: PASSED
+- Hold: PASSED
+
+Output files generated in workspace/build/
+
+--
+BitWorks Synthesis Engine"""
+    },
+    {
+        "from": "debugger@bitworks", 
+        "subject": "Waveform Analysis Complete", 
+        "read": False,
+        "date": "2025-10-11 16:15",
+        "content": """Waveform analysis finished.
+
+Simulation: testbench.v
+Duration: 1000ns
+Status: COMPLETED
+
+Key Findings:
+- Reset signal properly initializes counter to 0x00
+- Clock period: 10ns (100MHz)
+- Counter increments correctly on each rising edge
+- No timing violations detected
+- No X or Z states observed
+
+Signal Statistics:
+- clk: 100 transitions
+- reset: 2 transitions  
+- count[7:0]: 50 value changes
+
+Waveform file: workspace/sim/waves.vcd
+Log file: workspace/sim/simulation.log
+
+--
+BitWorks Waveform Analyzer"""
+    },
 ]
 selected_email_index = 0
 active_panel = "editor"  # "editor", "files", "inbox"
+show_email_modal = False  # Whether to show full email modal
+email_modal_content = ""  # Content for the modal
 
 active_menu = None
 menus = {
@@ -245,6 +322,32 @@ def switch_panel(panel_name):
         return True
     return False
 
+def show_email_modal_dialog(email_index):
+    """Show full email content in modal dialog"""
+    global show_email_modal, email_modal_content
+    if email_index < len(emails):
+        email = emails[email_index]
+        email["read"] = True  # Mark as read when opened
+        show_email_modal = True
+        email_modal_content = f"""From: {email['from']}
+Date: {email['date']}
+Subject: {email['subject']}
+
+{'-' * 50}
+
+{email['content']}
+
+{'-' * 50}
+
+Press any key to close"""
+        print(f"Opened email: {email['subject']}")
+
+def close_email_modal():
+    """Close the email modal dialog"""
+    global show_email_modal, email_modal_content
+    show_email_modal = False
+    email_modal_content = ""
+
 def handle_panel_navigation(event):
     """Handle navigation within panels"""
     global selected_file_index, selected_email_index, workspace_files, emails
@@ -267,8 +370,7 @@ def handle_panel_navigation(event):
             selected_email_index = min(len(emails) - 1, selected_email_index + 1)
         elif event.key == pygame.K_RETURN:
             if selected_email_index < len(emails):
-                emails[selected_email_index]["read"] = True
-                print(f"Opened email: {emails[selected_email_index]['subject']}")
+                show_email_modal_dialog(selected_email_index)
 
 
 def clear_selection():
@@ -603,12 +705,16 @@ def draw_workspace():
     # Draw text editor (right two-thirds)
     draw_text_editor(EDITOR_X_OFFSET, menu_height, EDITOR_WIDTH, HEIGHT - menu_height, line_height)
     
-    # Draw status text in bottom-right corner
-    status_text = f"File: {current_file} | Panel: {active_panel.title()}"
-    status_surface = small_font.render(status_text, True, GREEN)
-    status_rect = status_surface.get_rect()
-    status_rect.bottomright = (WIDTH - 10, HEIGHT - 10)
-    screen.blit(status_surface, status_rect)
+    # Draw status text in bottom-right corner (if no modal is open)
+    if not show_email_modal:
+        status_text = f"File: {current_file} | Panel: {active_panel.title()}"
+        status_surface = small_font.render(status_text, True, GREEN)
+        status_rect = status_surface.get_rect()
+        status_rect.bottomright = (WIDTH - 10, HEIGHT - 10)
+        screen.blit(status_surface, status_rect)
+    
+    # Draw email modal if active (on top of everything)
+    draw_email_modal()
     
     pygame.display.flip()
 
@@ -690,7 +796,7 @@ def draw_file_browser(y_start, y_end, line_height, small_font):
         y += line_height
 
 def draw_email_inbox(y_start, y_end, line_height, small_font):
-    """Draw the email inbox panel"""
+    """Draw the email inbox panel with message preview"""
     # Panel header
     header_height = line_height + 4
     header_bg = MENU_BG if active_panel == "inbox" else GRAY
@@ -699,9 +805,14 @@ def draw_email_inbox(y_start, y_end, line_height, small_font):
     header_text = small_font.render("INBOX", True, GREEN)
     screen.blit(header_text, (5, y_start + 2))
     
-    # Email list
+    # Calculate split: top half for email list, bottom half for message preview
+    inbox_total_height = y_end - y_start - header_height - 5
+    email_list_height = inbox_total_height // 2
+    message_preview_height = inbox_total_height - email_list_height
+    
+    # Email list (top half)
     y = y_start + header_height + 5
-    max_emails = (INBOX_HEIGHT - header_height - 10) // line_height
+    max_emails = email_list_height // line_height
     
     for i, email in enumerate(emails[:max_emails]):
         if i == selected_email_index and active_panel == "inbox":
@@ -725,6 +836,88 @@ def draw_email_inbox(y_start, y_end, line_height, small_font):
         screen.blit(subject_text, (15, y))
         
         y += line_height
+    
+    # Separator line between email list and message preview
+    separator_y = y_start + header_height + 5 + email_list_height
+    pygame.draw.line(screen, GREEN, (0, separator_y), (LEFT_PANEL_WIDTH, separator_y), 1)
+    
+    # Message preview (bottom half)
+    draw_message_preview(separator_y + 2, y_end, line_height, small_font)
+
+def draw_message_preview(y_start, y_end, line_height, small_font):
+    """Draw the selected message content preview"""
+    if selected_email_index < len(emails):
+        email = emails[selected_email_index]
+        
+        # Message header
+        preview_y = y_start + 5
+        
+        # From line
+        from_text = small_font.render(f"From: {email['from']}", True, GREEN)
+        screen.blit(from_text, (5, preview_y))
+        preview_y += line_height
+        
+        # Date line
+        date_text = small_font.render(f"Date: {email['date']}", True, GREEN)
+        screen.blit(date_text, (5, preview_y))
+        preview_y += line_height
+        
+        # Subject line
+        subject_text = small_font.render(f"Subject: {email['subject']}", True, GREEN)
+        screen.blit(subject_text, (5, preview_y))
+        preview_y += line_height + 5
+        
+        # Message content (wrap and truncate to fit)
+        available_height = y_end - preview_y - 5
+        max_lines = available_height // line_height
+        
+        content_lines = email['content'].split('\n')
+        lines_shown = 0
+        
+        for content_line in content_lines:
+            if lines_shown >= max_lines:
+                break
+                
+            # Word wrap long lines
+            max_chars = (LEFT_PANEL_WIDTH - 10) // (small_font.size('M')[0])
+            
+            if len(content_line) <= max_chars:
+                # Line fits as-is
+                line_text = small_font.render(content_line, True, GREEN)
+                screen.blit(line_text, (5, preview_y))
+                preview_y += line_height
+                lines_shown += 1
+            else:
+                # Wrap line
+                words = content_line.split(' ')
+                current_line = ""
+                
+                for word in words:
+                    test_line = current_line + (" " if current_line else "") + word
+                    if len(test_line) <= max_chars:
+                        current_line = test_line
+                    else:
+                        # Output current line and start new one
+                        if current_line:
+                            line_text = small_font.render(current_line, True, GREEN)
+                            screen.blit(line_text, (5, preview_y))
+                            preview_y += line_height
+                            lines_shown += 1
+                            if lines_shown >= max_lines:
+                                break
+                        current_line = word
+                
+                # Output final line if any
+                if current_line and lines_shown < max_lines:
+                    line_text = small_font.render(current_line, True, GREEN)
+                    screen.blit(line_text, (5, preview_y))
+                    lines_shown += 1
+        
+        # Show "Press ENTER for full message" hint if message was truncated
+        if lines_shown >= max_lines or len(content_lines) > lines_shown:
+            hint_y = y_end - line_height - 5
+            hint_text = small_font.render("[ENTER for full message]", True, GREEN)
+            screen.blit(hint_text, (5, hint_y))
 
 def draw_text_editor(x_start, y_start, width, height, line_height):
     """Draw the text editor panel"""
@@ -790,6 +983,82 @@ def draw_cursor(text_x_margin, text_y_start, line_height):
         cy = text_y_start + cursor_y * line_height
         cursor_width = max(2, font_size // 9)
         pygame.draw.rect(screen, GREEN, (cx, cy, cursor_width * 5, font_size), 1)
+
+def draw_email_modal():
+    """Draw the full email modal dialog"""
+    if not show_email_modal or not email_modal_content:
+        return
+    
+    # Modal dimensions (80% of screen)
+    modal_width = int(WIDTH * 0.8)
+    modal_height = int(HEIGHT * 0.8)
+    modal_x = (WIDTH - modal_width) // 2
+    modal_y = (HEIGHT - modal_height) // 2
+    
+    # Draw modal background with border
+    pygame.draw.rect(screen, BLACK, (modal_x, modal_y, modal_width, modal_height))
+    pygame.draw.rect(screen, GREEN, (modal_x, modal_y, modal_width, modal_height), 2)
+    
+    # Draw modal header
+    header_height = font_size + 10
+    pygame.draw.rect(screen, MENU_BG, (modal_x, modal_y, modal_width, header_height))
+    
+    header_text = FONT.render("EMAIL MESSAGE", True, GREEN)
+    header_x = modal_x + (modal_width - header_text.get_width()) // 2
+    screen.blit(header_text, (header_x, modal_y + 5))
+    
+    # Draw modal content
+    content_y = modal_y + header_height + 10
+    content_x = modal_x + 20
+    available_width = modal_width - 40
+    available_height = modal_height - header_height - 20
+    
+    small_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(12, font_size // 2))
+    line_height = font_size + 2
+    max_lines = available_height // line_height
+    
+    # Split content into lines and render
+    content_lines = email_modal_content.split('\n')
+    lines_rendered = 0
+    
+    for line in content_lines:
+        if lines_rendered >= max_lines:
+            break
+            
+        # Word wrap long lines
+        max_chars = available_width // (small_font.size('M')[0])
+        
+        if len(line) <= max_chars:
+            # Line fits as-is
+            line_surface = small_font.render(line, True, GREEN)
+            screen.blit(line_surface, (content_x, content_y))
+            content_y += line_height
+            lines_rendered += 1
+        else:
+            # Word wrap
+            words = line.split(' ')
+            current_line = ""
+            
+            for word in words:
+                test_line = current_line + (" " if current_line else "") + word
+                if len(test_line) <= max_chars:
+                    current_line = test_line
+                else:
+                    # Output current line
+                    if current_line:
+                        line_surface = small_font.render(current_line, True, GREEN)
+                        screen.blit(line_surface, (content_x, content_y))
+                        content_y += line_height
+                        lines_rendered += 1
+                        if lines_rendered >= max_lines:
+                            break
+                    current_line = word
+            
+            # Output final wrapped line
+            if current_line and lines_rendered < max_lines:
+                line_surface = small_font.render(current_line, True, GREEN)
+                screen.blit(line_surface, (content_x, content_y))
+                lines_rendered += 1
 
 
 def handle_text_input(event):
@@ -908,6 +1177,12 @@ def process_key_event(event):
             boot_index = len(boot_lines)
             boot_done = True
     elif boot_done:
+        # Handle email modal first (if open)
+        if show_email_modal:
+            # Any key closes the modal
+            close_email_modal()
+            return
+        
         # Check for Alt+F4 or Escape to exit
         keys = pygame.key.get_pressed()
         if (event.key == pygame.K_F4 and keys[pygame.K_LALT]) or event.key == pygame.K_ESCAPE:

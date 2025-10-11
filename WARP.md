@@ -48,20 +48,44 @@ uv tree
 uv run python
 ```
 
+## Multi-Column Workspace Layout
+
+### **Panel Structure**:
+- **Left Third**: Split into File Browser (top) and Email Inbox (bottom)
+- **Right Two-Thirds**: Text Editor for Verilog and Assembly files
+
+### **File Browser Panel** (Top-Left):
+- **File Types**: Shows .v (Verilog) and .s (Assembly) files from workspace folder
+- **Navigation**: Arrow keys to select, Enter to open file, Tab to switch panels
+- **Visual Indicators**: [V] for Verilog, [S] for Assembly, * for currently open file
+- **Auto-scanning**: Automatically detects files in workspace directory
+
+### **Email Inbox Panel** (Bottom-Left):
+- **Two-Part Layout**: Email list (top half) and message preview (bottom half)
+- **Status Indicators**: ● for unread emails, space for read emails
+- **Message Preview**: Shows From, Date, Subject, and content preview
+- **Full Message Modal**: Press Enter to view complete email in modal dialog
+- **Navigation**: Arrow keys to select emails, Enter for full view
+
+### **Text Editor Panel** (Right Two-Thirds):
+- **Full-Featured Editor**: All text editing, selection, and clipboard capabilities
+- **File Context**: Header shows currently open file name
+- **Verilog-Focused**: Optimized for hardware description and assembly code
+
 ## Code Architecture
 
 ### Application Flow
-The application follows a simple state machine pattern:
+The application follows a multi-panel workspace pattern:
 
 1. **Boot Sequence Phase** (`boot_done = False`):
    - Simulates retro PC boot with timed text display
    - Shows BIOS messages, memory test, and DOS startup
    - Controlled by `boot_timer`, `boot_index`, and `boot_speed`
 
-2. **Text Editor Phase** (`boot_done = True`):
-   - Functional text editor with cursor navigation
-   - Menu system activated by function keys (F1-F3)
-   - Text buffer stored as list of strings
+2. **Multi-Panel Workspace Phase** (`boot_done = True`):
+   - Three-panel layout with file browser, inbox, and editor
+   - Panel-aware navigation and context switching
+   - Integrated file management and messaging system
 
 ### Key Components
 
