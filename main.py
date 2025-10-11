@@ -66,8 +66,7 @@ boot_speed = 0.7
 
 text_buffer = [""]
 cursor_x, cursor_y = 0, 0
-cursor_visible = True
-cursor_timer = 0
+cursor_timer = 0  # Timer for CRT-style cursor fade effect
 running = False
 
 # Text selection system
@@ -814,6 +813,12 @@ def draw_workspace():
 
     # Draw email modal if active (on top of everything)
     draw_email_modal()
+    
+    # Draw dropdown menus last so they appear above everything else
+    if active_menu:
+        x_margin = WIDTH // 50
+        menu_spacing = WIDTH // 8
+        draw_dropdown_menu(menu_height, x_margin, menu_spacing)
 
     pygame.display.flip()
 
@@ -833,26 +838,41 @@ def draw_menu_bar(menu_height):
         screen.blit(txt, (x, (menu_height - font_size) // 2))
         x += menu_spacing
 
-    # Draw dropdown menus if active
-    if active_menu:
-        draw_dropdown_menu(menu_height, x_margin, menu_spacing)
-
 
 def draw_dropdown_menu(menu_height, x_margin, menu_spacing):
-    """Draw dropdown menu"""
+    """Draw dropdown menu with enhanced visibility"""
     menu_items = menus[active_menu]
     idx = ["F1", "F2", "F3"].index(active_menu)
     x = x_margin + menu_spacing * idx
     y = menu_height
     menu_item_height = font_size + 8
     menu_item_width = WIDTH // 8
+    
+    # Calculate total menu height
+    total_menu_height = len(menu_items) * menu_item_height
+    
+    # Draw subtle shadow (offset by 2 pixels)
+    shadow_color = (20, 20, 20)  # Very dark shadow
+    pygame.draw.rect(screen, shadow_color, (x + 2, y + 2, menu_item_width, total_menu_height))
+    
+    # Draw menu background
+    pygame.draw.rect(screen, BLACK, (x, y, menu_item_width, total_menu_height))
+    
+    # Draw menu border
+    pygame.draw.rect(screen, GREEN, (x, y, menu_item_width, total_menu_height), 2)
 
+    # Draw menu items
+    current_y = y
     for i, item in enumerate(menu_items):
-        pygame.draw.rect(screen, GRAY, (x, y, menu_item_width, menu_item_height))
+        # Draw item background (darker gray for individual items)
+        pygame.draw.rect(screen, GRAY, (x + 2, current_y + 2, menu_item_width - 4, menu_item_height - 2))
+        
+        # Draw item text
         fkey_text = f"F{i+1}-{item}"
         t = FONT.render(fkey_text, True, GREEN)
-        screen.blit(t, (x + 8, y + (menu_item_height - font_size) // 2))
-        y += menu_item_height
+        screen.blit(t, (x + 8, current_y + (menu_item_height - font_size) // 2))
+        
+        current_y += menu_item_height
 
 
 def draw_file_browser(y_start, y_end, line_height):
@@ -1171,29 +1191,66 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
 
 
 def draw_cursor(text_x_margin, text_y_start, line_height):
-    """Draw the text cursor"""
-    global cursor_timer, cursor_visible
-    cursor_flash_rate = 500
+    """Draw the text cursor with CRT-style fade effect"""
+    global cursor_timer
+    
+    if cursor_y >= len(text_buffer):
+        return
+        
+    # Update cursor timer
     cursor_timer += clock.get_time()
-    if cursor_timer > cursor_flash_rate:
-        cursor_visible = not cursor_visible
+    
+    # Full fade cycle: 1200ms for slower, more CRT-like timing
+    fade_cycle_duration = 1200
+    fade_duration = 600  # Time for fade out or fade in
+    
+    # Reset timer after full cycle
+    if cursor_timer >= fade_cycle_duration:
         cursor_timer = 0
-
+    
+    # Calculate cursor position
     cx = text_x_margin + FONT.size(text_buffer[cursor_y][:cursor_x])[0]
     cy = text_y_start + cursor_y * line_height
     cursor_width = max(2, font_size // 9)
-    if cursor_visible and cursor_y < len(text_buffer):
-        pygame.draw.rect(screen, GREEN, (cx, cy, cursor_width * 5, font_size), 1)
-
+    
+    # Calculate fade opacity with smoother easing
+    if cursor_timer <= fade_duration:
+        # First half: fade out (1.0 -> 0.05) with ease-in
+        progress = cursor_timer / fade_duration
+        # Use sine wave for smoother transition
+        eased_progress = (1 - __import__('math').cos(progress * __import__('math').pi)) / 2
+        opacity = 1.0 - (eased_progress * 0.95)  # Fade from 1.0 to 0.05
     else:
-        opacity = cursor_timer / cursor_flash_rate
-        opacity = max(0.1, min(opacity, 1.0))
-        faded_color = (
-            int(GREEN[0] * opacity),
-            int(GREEN[1] * opacity),
-            int(GREEN[2] * opacity),
+        # Second half: fade in (0.05 -> 1.0) with ease-out
+        progress = (cursor_timer - fade_duration) / fade_duration
+        # Use sine wave for smoother transition
+        eased_progress = (1 - __import__('math').cos(progress * __import__('math').pi)) / 2
+        opacity = 0.05 + (eased_progress * 0.95)  # Fade from 0.05 to 1.0
+    
+    # Ensure opacity stays in valid range
+    opacity = max(0.05, min(opacity, 1.0))
+    
+    # Calculate faded color
+    faded_color = (
+        int(GREEN[0] * opacity),
+        int(GREEN[1] * opacity),
+        int(GREEN[2] * opacity),
+    )
+    
+    # Draw cursor with faded color and slight glow effect
+    # Draw a slightly larger, more transparent cursor behind for glow
+    if opacity > 0.3:  # Only add glow when cursor is relatively bright
+        glow_opacity = opacity * 0.3  # Glow is 30% of main cursor opacity
+        glow_color = (
+            int(GREEN[0] * glow_opacity),
+            int(GREEN[1] * glow_opacity),
+            int(GREEN[2] * glow_opacity),
         )
-        pygame.draw.rect(screen, faded_color, (cx, cy, cursor_width * 5, font_size), 1)
+        # Draw glow (larger, more transparent)
+        pygame.draw.rect(screen, glow_color, (cx - 1, cy - 1, cursor_width * 5 + 2, font_size + 2), 1)
+    
+    # Draw main cursor
+    pygame.draw.rect(screen, faded_color, (cx, cy, cursor_width * 5, font_size), 1)
 
 
 def draw_email_modal():
