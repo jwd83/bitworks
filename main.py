@@ -83,14 +83,15 @@ INBOX_HEIGHT = HEIGHT - FILE_BROWSER_HEIGHT  # Bottom half of left panel
 EDITOR_WIDTH = WIDTH - LEFT_PANEL_WIDTH  # Right two-thirds for editor
 EDITOR_X_OFFSET = LEFT_PANEL_WIDTH  # Editor starts after left panel
 
-# File browser state
-workspace_files = []
-selected_file_index = 0
-current_file = "1.v"  # Currently opened file
-
 # Email inbox state
 emails = []  # Will be loaded from files
 current_level = 1  # Current game level
+
+# File browser state
+workspace_files = []
+selected_file_index = 0
+current_file = f"{current_level}.sv"  # Currently opened file - level-based
+file_read_only = False  # Track if current file is read-only
 selected_email_index = 0
 active_panel = "editor"  # "editor", "files", "inbox"
 show_email_modal = False  # Whether to show full email modal
@@ -135,6 +136,15 @@ def should_key_repeat(key):
 
 
 # File operations
+def is_file_read_only(filename):
+    """Determine if a file should be read-only based on its name.
+    Files starting with numbers (like 1.sv, 2.sv, 33.s) are editable.
+    Files starting with letters (like nand.sv, not.sv) are read-only.
+    """
+    if not filename:
+        return False
+    return not filename[0].isdigit()
+
 def ensure_workspace_dir():
     """Create workspace directory if it doesn't exist"""
     if not os.path.exists("workspace"):
@@ -142,11 +152,17 @@ def ensure_workspace_dir():
 
 
 def save_file():
-    """Save current text buffer to workspace/1.v"""
+    """Save current text buffer to current file if not read-only"""
+    global file_read_only, current_file
+    if file_read_only:
+        print(f"Cannot save: {current_file} is read-only")
+        return False
     try:
         ensure_workspace_dir()
-        with open("workspace/1.v", "w", encoding="utf-8") as f:
+        file_path = os.path.join("workspace", current_file)
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write("\n".join(text_buffer))
+        print(f"Saved file: {current_file}")
         return True
     except Exception as e:
         print(f"Error saving file: {e}")
@@ -154,17 +170,19 @@ def save_file():
 
 
 def load_file():
-    """Load text from workspace/1.v if it exists"""
-    global text_buffer, cursor_x, cursor_y
+    """Load text from the current level file if it exists"""
+    global text_buffer, cursor_x, cursor_y, current_file, file_read_only
     try:
-        if os.path.exists("workspace/1.v"):
-            with open("workspace/1.v", "r", encoding="utf-8") as f:
+        file_path = os.path.join("workspace", current_file)
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
                 if content:
                     text_buffer = content.split("\n")
                 else:
                     text_buffer = [""]
                 cursor_x, cursor_y = 0, 0
+                file_read_only = is_file_read_only(current_file)
                 return True
         return False
     except Exception as e:
@@ -201,7 +219,7 @@ def scan_workspace_files():
 
 def load_file_by_name(filename):
     """Load a specific file by name"""
-    global text_buffer, cursor_x, cursor_y, current_file
+    global text_buffer, cursor_x, cursor_y, current_file, file_read_only
     try:
         ensure_workspace_dir()
         file_path = os.path.join("workspace", filename)
@@ -214,8 +232,10 @@ def load_file_by_name(filename):
                     text_buffer = [""]
                 cursor_x, cursor_y = 0, 0
                 current_file = filename
+                file_read_only = is_file_read_only(filename)
                 clear_selection()
-                print(f"Loaded file: {filename}")
+                readonly_status = " (READ-ONLY)" if file_read_only else ""
+                print(f"Loaded file: {filename}{readonly_status}")
                 return True
         else:
             print(f"File not found: {filename}")
@@ -225,8 +245,11 @@ def load_file_by_name(filename):
         return False
 
 def save_current_file():
-    """Save current text buffer to the current file"""
-    global current_file
+    """Save current text buffer to the current file if not read-only"""
+    global current_file, file_read_only
+    if file_read_only:
+        print(f"Cannot save: {current_file} is read-only")
+        return False
     try:
         ensure_workspace_dir()
         file_path = os.path.join("workspace", current_file)
@@ -685,13 +708,17 @@ def handle_menu_action(menu, item_index):
         if item_index < len(menu_items):
             action = menu_items[item_index]
             if action == "Cut":
-                if not cut_to_clipboard():
+                if file_read_only:
+                    print(f"Cannot cut: {current_file} is read-only")
+                elif not cut_to_clipboard():
                     print("Nothing to cut (no selection)")
             elif action == "Copy":
                 if not copy_to_clipboard():
                     print("Nothing to copy (no selection)")
             elif action == "Paste":
-                if not paste_from_clipboard():
+                if file_read_only:
+                    print(f"Cannot paste: {current_file} is read-only")
+                elif not paste_from_clipboard():
                     print("Nothing to paste (clipboard empty)")
     elif menu == "F3":
         menu_items = menus["F3"]
@@ -980,7 +1007,8 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
     pygame.draw.rect(screen, header_bg, (x_start, y_start, width, header_height))
     
     small_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(12, font_size // 2))
-    header_text = small_font.render(f"EDITOR - {current_file}", True, GREEN)
+    readonly_status = " (READ-ONLY)" if file_read_only else ""
+    header_text = small_font.render(f"EDITOR - {current_file}{readonly_status}", True, GREEN)
     screen.blit(header_text, (x_start + 5, y_start + 2))
     
     # Text area
@@ -1106,7 +1134,7 @@ def draw_email_modal():
 
 
 def handle_text_input(event):
-    global cursor_x, cursor_y
+    global cursor_x, cursor_y, file_read_only
     line = text_buffer[cursor_y]
 
     # Get modifier keys
@@ -1120,9 +1148,15 @@ def handle_text_input(event):
             copy_to_clipboard()
             return
         elif event.key == pygame.K_x:
+            if file_read_only:
+                print(f"Cannot cut: {current_file} is read-only")
+                return
             cut_to_clipboard()
             return
         elif event.key == pygame.K_v:
+            if file_read_only:
+                print(f"Cannot paste: {current_file} is read-only")
+                return
             paste_from_clipboard()
             return
         elif event.key == pygame.K_a:
@@ -1143,6 +1177,9 @@ def handle_text_input(event):
     old_cursor_x, old_cursor_y = cursor_x, cursor_y
 
     if event.key == pygame.K_BACKSPACE:
+        if file_read_only:
+            print(f"Cannot edit: {current_file} is read-only")
+            return
         if selection_active:
             delete_selected_text()
         elif cursor_x > 0:
@@ -1155,6 +1192,9 @@ def handle_text_input(event):
             cursor_y -= 1
             cursor_x = prev_len
     elif event.key == pygame.K_DELETE:
+        if file_read_only:
+            print(f"Cannot edit: {current_file} is read-only")
+            return
         if selection_active:
             delete_selected_text()
         elif cursor_x < len(line):
@@ -1163,6 +1203,9 @@ def handle_text_input(event):
             text_buffer[cursor_y] += text_buffer[cursor_y + 1]
             text_buffer.pop(cursor_y + 1)
     elif event.key == pygame.K_RETURN:
+        if file_read_only:
+            print(f"Cannot edit: {current_file} is read-only")
+            return
         if selection_active:
             delete_selected_text()
             line = text_buffer[cursor_y]
@@ -1195,6 +1238,9 @@ def handle_text_input(event):
     elif event.key == pygame.K_END:
         cursor_x = len(text_buffer[cursor_y])
     elif event.unicode.isprintable():
+        if file_read_only:
+            print(f"Cannot edit: {current_file} is read-only")
+            return
         if selection_active:
             delete_selected_text()
             line = text_buffer[cursor_y]
@@ -1284,6 +1330,12 @@ def process_key_event(event):
 def main():
     global boot_index, boot_done, boot_timer, active_menu, running
     running = True
+    
+    # Initialize workspace and try to load current level file
+    ensure_workspace_dir()
+    if not load_file():  # Try to load the current level file
+        # If file doesn't exist, create it with default content
+        print(f"Creating new file: {current_file}")
     while running:
         dt = clock.tick(30) / 1000.0
 
