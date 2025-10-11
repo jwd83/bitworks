@@ -1173,16 +1173,27 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
 def draw_cursor(text_x_margin, text_y_start, line_height):
     """Draw the text cursor"""
     global cursor_timer, cursor_visible
+    cursor_flash_rate = 500
     cursor_timer += clock.get_time()
-    if cursor_timer > 500:
+    if cursor_timer > cursor_flash_rate:
         cursor_visible = not cursor_visible
         cursor_timer = 0
 
+    cx = text_x_margin + FONT.size(text_buffer[cursor_y][:cursor_x])[0]
+    cy = text_y_start + cursor_y * line_height
+    cursor_width = max(2, font_size // 9)
     if cursor_visible and cursor_y < len(text_buffer):
-        cx = text_x_margin + FONT.size(text_buffer[cursor_y][:cursor_x])[0]
-        cy = text_y_start + cursor_y * line_height
-        cursor_width = max(2, font_size // 9)
         pygame.draw.rect(screen, GREEN, (cx, cy, cursor_width * 5, font_size), 1)
+
+    else:
+        opacity = cursor_timer / cursor_flash_rate
+        opacity = max(0.1, min(opacity, 1.0))
+        faded_color = (
+            int(GREEN[0] * opacity),
+            int(GREEN[1] * opacity),
+            int(GREEN[2] * opacity),
+        )
+        pygame.draw.rect(screen, faded_color, (cx, cy, cursor_width * 5, font_size), 1)
 
 
 def draw_email_modal():
