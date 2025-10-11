@@ -7,7 +7,7 @@ Student,
 
 If you're stuck on the AND gate implementation, here's a quick tip:
 
-The AND operation in Verilog is represented by the & operator.
+The AND operation in SystemVerilog is represented by the & operator.
 
 For two inputs 'a' and 'b', the AND gate can be implemented as:
 assign y = a & b;

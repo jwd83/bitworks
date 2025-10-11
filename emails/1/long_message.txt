@@ -16,7 +16,7 @@ A | B | Output
 1 | 0 |   0
 1 | 1 |   1
 
-In Verilog HDL, you can implement this using the assign statement with the bitwise AND operator (&). The syntax is quite straightforward:
+In SystemVerilog HDL, you can implement this using the assign statement with the bitwise AND operator (&). The syntax is quite straightforward:
 
 assign output_signal = input_a & input_b;
 

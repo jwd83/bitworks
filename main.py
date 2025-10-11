@@ -141,6 +141,7 @@ def is_file_read_only(filename):
     Files starting with numbers (like 1.sv, 2.sv, 33.s) are editable.
     Files starting with letters (like nand.sv, not.sv) are read-only.
     """
+    # Note: .sv = SystemVerilog, .s = Assembly
     if not filename:
         return False
     return not filename[0].isdigit()
@@ -198,7 +199,7 @@ def new_file():
     clear_selection()
 
 def scan_workspace_files():
-    """Scan workspace directory for .v and .s files"""
+    """Scan workspace directory for .sv and .s files"""
     global workspace_files
     workspace_files = []
     
@@ -206,7 +207,7 @@ def scan_workspace_files():
         ensure_workspace_dir()
         if os.path.exists("workspace"):
             for filename in sorted(os.listdir("workspace")):
-                if filename.endswith(('.v', '.s')):
+                if filename.endswith(('.sv', '.s')):
                     file_path = os.path.join("workspace", filename)
                     if os.path.isfile(file_path):
                         workspace_files.append(filename)
@@ -838,7 +839,7 @@ def draw_file_browser(y_start, y_end, line_height):
     header_bg = MENU_BG if active_panel == "files" else GRAY
     pygame.draw.rect(screen, header_bg, (0, y_start, LEFT_PANEL_WIDTH, header_height))
     
-    header_text = FONT.render("FILES (.v/.s)", True, GREEN)
+    header_text = FONT.render("FILES (.sv/.s)", True, GREEN)
     screen.blit(header_text, (5, y_start + 2))
     
     # File list
@@ -851,10 +852,12 @@ def draw_file_browser(y_start, y_end, line_height):
             pygame.draw.rect(screen, SELECTION_BG, (2, y - 2, LEFT_PANEL_WIDTH - 4, line_height))
         
         # Show file type icon with better detection
-        if filename.endswith('.sv') or filename.endswith('.v'):
-            icon = "V"
+        if filename.endswith('.sv'):
+            icon = "SV"  # SystemVerilog
+        elif filename.endswith('.v'):
+            icon = "V"   # Legacy Verilog (for backward compatibility)
         elif filename.endswith('.s'):
-            icon = "S" 
+            icon = "S"   # Assembly
         else:
             icon = "?"
             
