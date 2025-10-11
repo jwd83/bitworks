@@ -95,6 +95,9 @@ selected_email_index = 0
 active_panel = "editor"  # "editor", "files", "inbox"
 show_email_modal = False  # Whether to show full email modal
 email_modal_content = ""  # Content for the modal
+email_modal_scroll_offset = 0  # Current scroll position in modal
+email_modal_content_lines = []  # Pre-processed lines for scrolling
+email_modal_max_visible_lines = 0  # Max lines that fit in modal viewport
 
 active_menu = None
 menus = {
@@ -315,11 +318,13 @@ def switch_panel(panel_name):
 
 def show_email_modal_dialog(email_index):
     """Show full email content in modal dialog"""
-    global show_email_modal, email_modal_content
+    global show_email_modal, email_modal_content, email_modal_scroll_offset, email_modal_content_lines
     if email_index < len(emails):
         email = emails[email_index]
         email["read"] = True  # Mark as read when opened
         show_email_modal = True
+        email_modal_scroll_offset = 0  # Reset scroll position
+        
         email_modal_content = f"""From: {email['from']}
 Date: {email['date']}
 Subject: {email['subject']}
@@ -328,16 +333,73 @@ Subject: {email['subject']}
 
 {email['content']}
 
-{'-' * 50}
-
-Press any key to close"""
+{'-' * 50}"""
+        
+        # Pre-process content for scrolling
+        prepare_modal_content_for_scrolling()
         print(f"Opened email: {email['subject']}")
 
 def close_email_modal():
     """Close the email modal dialog"""
-    global show_email_modal, email_modal_content
+    global show_email_modal, email_modal_content, email_modal_scroll_offset, email_modal_content_lines
     show_email_modal = False
     email_modal_content = ""
+    email_modal_scroll_offset = 0
+    email_modal_content_lines = []
+
+def prepare_modal_content_for_scrolling():
+    """Pre-process email modal content into wrapped lines for scrolling"""
+    global email_modal_content_lines, email_modal_max_visible_lines
+    
+    # Calculate modal dimensions
+    modal_width = int(WIDTH * 0.8)
+    modal_height = int(HEIGHT * 0.8)
+    header_height = font_size + 10
+    available_width = modal_width - 40
+    available_height = modal_height - header_height - 20
+    
+    small_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(12, font_size // 2))
+    line_height = font_size + 2
+    email_modal_max_visible_lines = available_height // line_height
+    
+    # Process content into wrapped lines
+    email_modal_content_lines = []
+    content_lines = email_modal_content.split('\n')
+    
+    max_chars = available_width // (small_font.size('M')[0])
+    
+    for content_line in content_lines:
+        if len(content_line) <= max_chars:
+            # Line fits as-is
+            email_modal_content_lines.append(content_line)
+        else:
+            # Word wrap
+            words = content_line.split(' ')
+            current_line = ""
+            
+            for word in words:
+                test_line = current_line + (" " if current_line else "") + word
+                if len(test_line) <= max_chars:
+                    current_line = test_line
+                else:
+                    # Output current line and start new one
+                    if current_line:
+                        email_modal_content_lines.append(current_line)
+                    current_line = word
+            
+            # Output final wrapped line
+            if current_line:
+                email_modal_content_lines.append(current_line)
+
+def scroll_email_modal(direction, amount=1):
+    """Scroll the email modal up or down"""
+    global email_modal_scroll_offset
+    
+    if direction == "up":
+        email_modal_scroll_offset = max(0, email_modal_scroll_offset - amount)
+    elif direction == "down":
+        max_scroll = max(0, len(email_modal_content_lines) - email_modal_max_visible_lines)
+        email_modal_scroll_offset = min(max_scroll, email_modal_scroll_offset + amount)
 
 def handle_panel_navigation(event):
     """Handle navigation within panels"""
@@ -976,8 +1038,8 @@ def draw_cursor(text_x_margin, text_y_start, line_height):
         pygame.draw.rect(screen, GREEN, (cx, cy, cursor_width * 5, font_size), 1)
 
 def draw_email_modal():
-    """Draw the full email modal dialog"""
-    if not show_email_modal or not email_modal_content:
+    """Draw the full email modal dialog with scrolling support"""
+    if not show_email_modal or not email_modal_content_lines:
         return
     
     # Modal dimensions (80% of screen)
@@ -994,62 +1056,53 @@ def draw_email_modal():
     header_height = font_size + 10
     pygame.draw.rect(screen, MENU_BG, (modal_x, modal_y, modal_width, header_height))
     
-    header_text = FONT.render("EMAIL MESSAGE", True, GREEN)
-    header_x = modal_x + (modal_width - header_text.get_width()) // 2
-    screen.blit(header_text, (header_x, modal_y + 5))
+    header_text = "EMAIL MESSAGE - UP/DOWN or PgUp/PgDn to scroll, HOME/END to jump, any key to close"
+    small_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(12, font_size // 2))
+    header_surface = small_font.render(header_text, True, GREEN)
+    header_x = modal_x + (modal_width - header_surface.get_width()) // 2
+    screen.blit(header_surface, (header_x, modal_y + 5))
     
-    # Draw modal content
+    # Draw scrolling content
     content_y = modal_y + header_height + 10
     content_x = modal_x + 20
-    available_width = modal_width - 40
-    available_height = modal_height - header_height - 20
     
     small_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(12, font_size // 2))
     line_height = font_size + 2
-    max_lines = available_height // line_height
     
-    # Split content into lines and render
-    content_lines = email_modal_content.split('\n')
-    lines_rendered = 0
+    # Render visible lines based on scroll offset
+    start_line = email_modal_scroll_offset
+    end_line = min(start_line + email_modal_max_visible_lines, len(email_modal_content_lines))
     
-    for line in content_lines:
-        if lines_rendered >= max_lines:
-            break
-            
-        # Word wrap long lines
-        max_chars = available_width // (small_font.size('M')[0])
+    for i in range(start_line, end_line):
+        line = email_modal_content_lines[i]
+        line_surface = small_font.render(line, True, GREEN)
+        screen.blit(line_surface, (content_x, content_y))
+        content_y += line_height
+    
+    # Draw scroll indicators if content is scrollable
+    if len(email_modal_content_lines) > email_modal_max_visible_lines:
+        # Draw scroll position indicator
+        scroll_indicator_x = modal_x + modal_width - 30
+        scroll_indicator_y = modal_y + header_height + 10
+        scroll_indicator_height = modal_height - header_height - 20
         
-        if len(line) <= max_chars:
-            # Line fits as-is
-            line_surface = small_font.render(line, True, GREEN)
-            screen.blit(line_surface, (content_x, content_y))
-            content_y += line_height
-            lines_rendered += 1
-        else:
-            # Word wrap
-            words = line.split(' ')
-            current_line = ""
-            
-            for word in words:
-                test_line = current_line + (" " if current_line else "") + word
-                if len(test_line) <= max_chars:
-                    current_line = test_line
-                else:
-                    # Output current line
-                    if current_line:
-                        line_surface = small_font.render(current_line, True, GREEN)
-                        screen.blit(line_surface, (content_x, content_y))
-                        content_y += line_height
-                        lines_rendered += 1
-                        if lines_rendered >= max_lines:
-                            break
-                    current_line = word
-            
-            # Output final wrapped line
-            if current_line and lines_rendered < max_lines:
-                line_surface = small_font.render(current_line, True, GREEN)
-                screen.blit(line_surface, (content_x, content_y))
-                lines_rendered += 1
+        # Scroll bar background
+        pygame.draw.rect(screen, GRAY, (scroll_indicator_x, scroll_indicator_y, 10, scroll_indicator_height))
+        
+        # Scroll bar thumb
+        total_lines = len(email_modal_content_lines)
+        thumb_height = max(10, int(scroll_indicator_height * email_modal_max_visible_lines / total_lines))
+        thumb_y = scroll_indicator_y + int(scroll_indicator_height * email_modal_scroll_offset / total_lines)
+        pygame.draw.rect(screen, GREEN, (scroll_indicator_x, thumb_y, 10, thumb_height))
+        
+        # Show scroll hints
+        if email_modal_scroll_offset > 0:
+            up_hint = small_font.render("↑ UP", True, GREEN)
+            screen.blit(up_hint, (modal_x + modal_width - 60, modal_y + header_height + 5))
+        
+        if email_modal_scroll_offset < total_lines - email_modal_max_visible_lines:
+            down_hint = small_font.render("↓ DOWN", True, GREEN)
+            screen.blit(down_hint, (modal_x + modal_width - 70, modal_y + modal_height - 25))
 
 
 def handle_text_input(event):
@@ -1170,9 +1223,30 @@ def process_key_event(event):
     elif boot_done:
         # Handle email modal first (if open)
         if show_email_modal:
-            # Any key closes the modal
-            close_email_modal()
-            return
+            # Handle scrolling in modal with arrow keys
+            if event.key == pygame.K_UP:
+                scroll_email_modal("up")
+                return
+            elif event.key == pygame.K_DOWN:
+                scroll_email_modal("down")
+                return
+            elif event.key == pygame.K_PAGEUP:
+                scroll_email_modal("up", email_modal_max_visible_lines // 2)
+                return
+            elif event.key == pygame.K_PAGEDOWN:
+                scroll_email_modal("down", email_modal_max_visible_lines // 2)
+                return
+            elif event.key == pygame.K_HOME:
+                email_modal_scroll_offset = 0
+                return
+            elif event.key == pygame.K_END:
+                max_scroll = max(0, len(email_modal_content_lines) - email_modal_max_visible_lines)
+                email_modal_scroll_offset = max_scroll
+                return
+            else:
+                # Any other key closes the modal
+                close_email_modal()
+                return
         
         # Check for Alt+F4 or Escape to exit
         keys = pygame.key.get_pressed()
