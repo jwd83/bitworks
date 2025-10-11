@@ -20,16 +20,23 @@ GRAY = (50, 50, 50)
 MENU_BG = (0, 60, 0)
 
 boot_lines = [
-    "JackROM BIOS 4.0 Release A4",
-    "Copyright (C) 1985-1992 Jack Games Ltd.",
+    "JackROM BIOS (C) 1991 Jack Games Ltd.",
+    "12-25-1991",
     "",
-    "Memory Test: 640K OK",
+    "Main Processor: JG25",
+    "Base Memory: 640 KB OK",
+    "Extended Memory: 7424 KB",
+    "128K CACHE MEMORY OK",
+    "40MHz CPU Clock",
     "Detecting IDE Devices ...",
     "Primary Master: 40MB ST-251",
     "Primary Slave: None",
     "Starting DOS...",
     "",
     "C:\\>bitworks.exe",
+    "Loading BitWorks Text Editor...",
+    "",
+    "",
 ]
 
 boot_done = False
@@ -49,6 +56,30 @@ menus = {
     "F3": ["About"],
 }
 
+def handle_menu_action(menu, item_index):
+    """Handle menu item selection"""
+    global running
+    
+    if menu == "F1":
+        menu_items = menus["F1"]
+        if item_index < len(menu_items):
+            action = menu_items[item_index]
+            if action == "Exit":
+                return False  # Signal to quit
+            # Add other File menu actions here as needed
+    elif menu == "F2":
+        menu_items = menus["F2"]
+        if item_index < len(menu_items):
+            action = menu_items[item_index]
+        # Add Edit menu actions here as needed
+    elif menu == "F3":
+        menu_items = menus["F3"]
+        if item_index < len(menu_items):
+            action = menu_items[item_index]
+        # Add Help menu actions here as needed
+    
+    return True  # Continue running
+
 
 def draw_boot_screen():
     screen.fill(BLACK)
@@ -61,34 +92,14 @@ def draw_boot_screen():
 
 def draw_editor():
     screen.fill(BLACK)
-    # Draw menu bar
-    pygame.draw.rect(screen, MENU_BG, (0, 0, WIDTH, 30))
-    fkeys = ["F1-File", "F2-Edit", "F3-Help"]
-    x = 10
-    for label in fkeys:
-        txt = FONT.render(label, True, GREEN)
-        screen.blit(txt, (x, 5))
-        x += 150
-
-    # Draw menus if active
-    if active_menu:
-        menu_items = menus[active_menu]
-        idx = ["F1", "F2", "F3"].index(active_menu)
-        x = 10 + 150 * idx
-        y = 30
-        for item in menu_items:
-            pygame.draw.rect(screen, GRAY, (x, y, 120, 25))
-            t = FONT.render(item, True, GREEN)
-            screen.blit(t, (x + 5, y + 3))
-            y += 25
-
-    # Draw text area
+    
+    # Draw text area first (background layer)
     yoff = 40
     for y, line in enumerate(text_buffer):
         text = FONT.render(line, True, GREEN)
         screen.blit(text, (20, yoff + y * 22))
 
-    # Cursor blink
+    # Draw cursor
     global cursor_timer, cursor_visible
     cursor_timer += clock.get_time()
     if cursor_timer > 500:
@@ -99,6 +110,29 @@ def draw_editor():
         cx = 20 + FONT.size(text_buffer[cursor_y][:cursor_x])[0]
         cy = yoff + cursor_y * 22
         pygame.draw.rect(screen, GREEN, (cx, cy, 10, 18), 1)
+    
+    # Draw menu bar (top layer)
+    pygame.draw.rect(screen, MENU_BG, (0, 0, WIDTH, 30))
+    fkeys = ["F1-File", "F2-Edit", "F3-Help"]
+    x = 10
+    for label in fkeys:
+        txt = FONT.render(label, True, GREEN)
+        screen.blit(txt, (x, 5))
+        x += 150
+
+    # Draw dropdown menus if active (top layer)
+    if active_menu:
+        menu_items = menus[active_menu]
+        idx = ["F1", "F2", "F3"].index(active_menu)
+        x = 10 + 150 * idx
+        y = 30
+        for i, item in enumerate(menu_items):
+            pygame.draw.rect(screen, GRAY, (x, y, 150, 25))
+            # Show F-key number before menu item
+            fkey_text = f"F{i+1}-{item}"
+            t = FONT.render(fkey_text, True, GREEN)
+            screen.blit(t, (x + 5, y + 3))
+            y += 25
 
     pygame.display.flip()
 
@@ -149,8 +183,21 @@ def main():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
-                    elif event.key in (pygame.K_F1, pygame.K_F2, pygame.K_F3):
-                        active_menu = f"F{event.key - pygame.K_F1 + 1}"
+                    elif event.key >= pygame.K_F1 and event.key <= pygame.K_F12:
+                        fkey_num = event.key - pygame.K_F1 + 1
+                        
+                        if active_menu:
+                            # If menu is open, use F-keys to select menu items
+                            menu_items = menus[active_menu]
+                            if fkey_num <= len(menu_items):
+                                if not handle_menu_action(active_menu, fkey_num - 1):
+                                    running = False  # Exit was selected
+                                active_menu = None  # Close menu after selection
+                            # If F-key is beyond menu items, don't close menu
+                        else:
+                            # If no menu is open, open the corresponding menu (only F1-F3)
+                            if fkey_num <= 3:
+                                active_menu = f"F{fkey_num}"
                     else:
                         active_menu = None
                         handle_text_input(event)
