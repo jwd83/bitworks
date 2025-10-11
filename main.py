@@ -146,6 +146,7 @@ def is_file_read_only(filename):
         return False
     return not filename[0].isdigit()
 
+
 def ensure_workspace_dir():
     """Create workspace directory if it doesn't exist"""
     if not os.path.exists("workspace"):
@@ -198,25 +199,27 @@ def new_file():
     cursor_x, cursor_y = 0, 0
     clear_selection()
 
+
 def scan_workspace_files():
     """Scan workspace directory for .sv and .s files"""
     global workspace_files
     workspace_files = []
-    
+
     try:
         ensure_workspace_dir()
         if os.path.exists("workspace"):
             for filename in sorted(os.listdir("workspace")):
-                if filename.endswith(('.sv', '.s')):
+                if filename.endswith((".sv", ".s")):
                     file_path = os.path.join("workspace", filename)
                     if os.path.isfile(file_path):
                         workspace_files.append(filename)
     except Exception as e:
         print(f"Error scanning workspace: {e}")
-    
+
     # Ensure current file is in the list
     if current_file not in workspace_files and current_file:
         workspace_files.insert(0, current_file)
+
 
 def load_file_by_name(filename):
     """Load a specific file by name"""
@@ -245,6 +248,7 @@ def load_file_by_name(filename):
         print(f"Error loading file {filename}: {e}")
         return False
 
+
 def save_current_file():
     """Save current text buffer to the current file if not read-only"""
     global current_file, file_read_only
@@ -262,74 +266,71 @@ def save_current_file():
         print(f"Error saving file {current_file}: {e}")
         return False
 
+
 def load_emails_for_level(level):
     """Load email messages from files for the specified level"""
     global emails
     emails = []
-    
+
     email_dir = os.path.join("emails", str(level))
     if not os.path.exists(email_dir):
         print(f"Email directory not found: {email_dir}")
         return False
-    
+
     try:
         # Get all .txt files in the level directory and sort them
-        email_files = [f for f in os.listdir(email_dir) if f.endswith('.txt')]
+        email_files = [f for f in os.listdir(email_dir) if f.endswith(".txt")]
         email_files.sort()
-        
+
         for filename in email_files:
             file_path = os.path.join(email_dir, filename)
             email = parse_email_file(file_path)
             if email:
                 emails.append(email)
-        
+
         print(f"Loaded {len(emails)} emails for level {level}")
         return True
-        
+
     except Exception as e:
         print(f"Error loading emails for level {level}: {e}")
         return False
 
+
 def parse_email_file(file_path):
     """Parse an individual email file"""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read().strip()
-        
-        lines = content.split('\n')
-        email = {
-            "from": "",
-            "date": "",
-            "subject": "",
-            "read": False,
-            "content": ""
-        }
-        
+
+        lines = content.split("\n")
+        email = {"from": "", "date": "", "subject": "", "read": False, "content": ""}
+
         # Parse header fields
         content_start = 0
         for i, line in enumerate(lines):
             line = line.strip()
-            if line.startswith('From: '):
-                email['from'] = line[6:]
-            elif line.startswith('Date: '):
-                email['date'] = line[6:]
-            elif line.startswith('Subject: '):
-                email['subject'] = line[9:]
-            elif line.startswith('Read: '):
-                email['read'] = line[6:].lower() == 'true'
-            elif line == '' and i > 0:  # First empty line after headers
+            if line.startswith("From: "):
+                email["from"] = line[6:]
+            elif line.startswith("Date: "):
+                email["date"] = line[6:]
+            elif line.startswith("Subject: "):
+                email["subject"] = line[9:]
+            elif line.startswith("Read: "):
+                email["read"] = line[6:].lower() == "true"
+            elif line == "" and i > 0:  # First empty line after headers
                 content_start = i + 1
                 break
-        
+
         # Everything after the headers is content
         if content_start < len(lines):
-            email['content'] = '\n'.join(lines[content_start:])
-        
+            email["content"] = "\n".join(lines[content_start:])
+
         return email
-        
+
     except Exception as e:
         print(f"Error parsing email file {file_path}: {e}")
         return None
+
 
 def switch_panel(panel_name):
     """Switch to a different panel"""
@@ -340,6 +341,7 @@ def switch_panel(panel_name):
         return True
     return False
 
+
 def show_email_modal_dialog(email_index):
     """Show full email content in modal dialog"""
     global show_email_modal, email_modal_content, email_modal_scroll_offset, email_modal_content_lines
@@ -348,7 +350,7 @@ def show_email_modal_dialog(email_index):
         email["read"] = True  # Mark as read when opened
         show_email_modal = True
         email_modal_scroll_offset = 0  # Reset scroll position
-        
+
         email_modal_content = f"""From: {email['from']}
 Date: {email['date']}
 Subject: {email['subject']}
@@ -358,10 +360,11 @@ Subject: {email['subject']}
 {email['content']}
 
 {'-' * 50}"""
-        
+
         # Pre-process content for scrolling
         prepare_modal_content_for_scrolling()
         print(f"Opened email: {email['subject']}")
+
 
 def close_email_modal():
     """Close the email modal dialog"""
@@ -371,36 +374,39 @@ def close_email_modal():
     email_modal_scroll_offset = 0
     email_modal_content_lines = []
 
+
 def prepare_modal_content_for_scrolling():
     """Pre-process email modal content into wrapped lines for scrolling"""
     global email_modal_content_lines, email_modal_max_visible_lines
-    
+
     # Calculate modal dimensions
     modal_width = int(WIDTH * 0.8)
     modal_height = int(HEIGHT * 0.8)
     header_height = font_size + 10
     available_width = modal_width - 40
     available_height = modal_height - header_height - 20
-    
-    modal_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(14, int(font_size * 0.8)))
+
+    modal_font = pygame.font.Font(
+        pygame.font.match_font("couriernew"), max(14, int(font_size * 0.8))
+    )
     line_height = font_size + 2
     email_modal_max_visible_lines = available_height // line_height
-    
+
     # Process content into wrapped lines
     email_modal_content_lines = []
-    content_lines = email_modal_content.split('\n')
-    
-    max_chars = available_width // (modal_font.size('M')[0])
-    
+    content_lines = email_modal_content.split("\n")
+
+    max_chars = available_width // (modal_font.size("M")[0])
+
     for content_line in content_lines:
         if len(content_line) <= max_chars:
             # Line fits as-is
             email_modal_content_lines.append(content_line)
         else:
             # Word wrap
-            words = content_line.split(' ')
+            words = content_line.split(" ")
             current_line = ""
-            
+
             for word in words:
                 test_line = current_line + (" " if current_line else "") + word
                 if len(test_line) <= max_chars:
@@ -410,25 +416,29 @@ def prepare_modal_content_for_scrolling():
                     if current_line:
                         email_modal_content_lines.append(current_line)
                     current_line = word
-            
+
             # Output final wrapped line
             if current_line:
                 email_modal_content_lines.append(current_line)
 
+
 def scroll_email_modal(direction, amount=1):
     """Scroll the email modal up or down"""
     global email_modal_scroll_offset
-    
+
     if direction == "up":
         email_modal_scroll_offset = max(0, email_modal_scroll_offset - amount)
     elif direction == "down":
-        max_scroll = max(0, len(email_modal_content_lines) - email_modal_max_visible_lines)
+        max_scroll = max(
+            0, len(email_modal_content_lines) - email_modal_max_visible_lines
+        )
         email_modal_scroll_offset = min(max_scroll, email_modal_scroll_offset + amount)
+
 
 def handle_panel_navigation(event):
     """Handle navigation within panels"""
     global selected_file_index, selected_email_index, workspace_files, emails
-    
+
     if active_panel == "files":
         if event.key == pygame.K_UP:
             selected_file_index = max(0, selected_file_index - 1)
@@ -439,7 +449,7 @@ def handle_panel_navigation(event):
                 filename = workspace_files[selected_file_index]
                 if load_file_by_name(filename):
                     switch_panel("editor")
-    
+
     elif active_panel == "inbox":
         if event.key == pygame.K_UP:
             selected_email_index = max(0, selected_email_index - 1)
@@ -763,27 +773,37 @@ def draw_boot_screen():
 def draw_workspace():
     """Draw the multi-column workspace layout"""
     screen.fill(BLACK)
-    
+
     # Scale UI elements based on screen size
     menu_height = font_size + 14
     line_height = font_size + 4
-    
+
     # Draw menu bar across full width
     draw_menu_bar(menu_height)
-    
+
     # Draw vertical separator lines
-    pygame.draw.line(screen, GREEN, (LEFT_PANEL_WIDTH, menu_height), (LEFT_PANEL_WIDTH, HEIGHT), 1)
-    pygame.draw.line(screen, GREEN, (0, FILE_BROWSER_HEIGHT), (LEFT_PANEL_WIDTH, FILE_BROWSER_HEIGHT), 1)
-    
+    pygame.draw.line(
+        screen, GREEN, (LEFT_PANEL_WIDTH, menu_height), (LEFT_PANEL_WIDTH, HEIGHT), 1
+    )
+    pygame.draw.line(
+        screen,
+        GREEN,
+        (0, FILE_BROWSER_HEIGHT),
+        (LEFT_PANEL_WIDTH, FILE_BROWSER_HEIGHT),
+        1,
+    )
+
     # Draw file browser (top-left)
     draw_file_browser(menu_height, FILE_BROWSER_HEIGHT, line_height)
-    
+
     # Draw email inbox (bottom-left)
     draw_email_inbox(FILE_BROWSER_HEIGHT, HEIGHT, line_height)
-    
+
     # Draw text editor (right two-thirds)
-    draw_text_editor(EDITOR_X_OFFSET, menu_height, EDITOR_WIDTH, HEIGHT - menu_height, line_height)
-    
+    draw_text_editor(
+        EDITOR_X_OFFSET, menu_height, EDITOR_WIDTH, HEIGHT - menu_height, line_height
+    )
+
     # Draw status text in bottom-right corner (if no modal is open)
     if not show_email_modal:
         status_text = f"File: {current_file} | Panel: {active_panel.title()}"
@@ -791,30 +811,32 @@ def draw_workspace():
         status_rect = status_surface.get_rect()
         status_rect.bottomright = (WIDTH - 10, HEIGHT - 10)
         screen.blit(status_surface, status_rect)
-    
+
     # Draw email modal if active (on top of everything)
     draw_email_modal()
-    
+
     pygame.display.flip()
+
 
 def draw_menu_bar(menu_height):
     """Draw the menu bar across the top"""
     pygame.draw.rect(screen, MENU_BG, (0, 0, WIDTH, menu_height))
-    
+
     # Update menu labels to reflect new functionality
     fkeys = ["F1-File", "F2-Edit", "F3-View"]
     x_margin = WIDTH // 50
     menu_spacing = WIDTH // 8
     x = x_margin
-    
+
     for label in fkeys:
         txt = FONT.render(label, True, GREEN)
         screen.blit(txt, (x, (menu_height - font_size) // 2))
         x += menu_spacing
-    
+
     # Draw dropdown menus if active
     if active_menu:
         draw_dropdown_menu(menu_height, x_margin, menu_spacing)
+
 
 def draw_dropdown_menu(menu_height, x_margin, menu_spacing):
     """Draw dropdown menu"""
@@ -824,7 +846,7 @@ def draw_dropdown_menu(menu_height, x_margin, menu_spacing):
     y = menu_height
     menu_item_height = font_size + 8
     menu_item_width = WIDTH // 8
-    
+
     for i, item in enumerate(menu_items):
         pygame.draw.rect(screen, GRAY, (x, y, menu_item_width, menu_item_height))
         fkey_text = f"F{i+1}-{item}"
@@ -832,56 +854,62 @@ def draw_dropdown_menu(menu_height, x_margin, menu_spacing):
         screen.blit(t, (x + 8, y + (menu_item_height - font_size) // 2))
         y += menu_item_height
 
+
 def draw_file_browser(y_start, y_end, line_height):
     """Draw the file browser panel"""
     # Panel header
     header_height = line_height + 4
     header_bg = MENU_BG if active_panel == "files" else GRAY
     pygame.draw.rect(screen, header_bg, (0, y_start, LEFT_PANEL_WIDTH, header_height))
-    
+
     header_text = FONT.render("FILES (.sv/.s)", True, GREEN)
     screen.blit(header_text, (5, y_start + 2))
-    
+
     # File list
     y = y_start + header_height + 5
     max_files = (FILE_BROWSER_HEIGHT - header_height - 10) // line_height
-    
+
     for i, filename in enumerate(workspace_files[:max_files]):
         if i == selected_file_index and active_panel == "files":
             # Highlight selected file
-            pygame.draw.rect(screen, SELECTION_BG, (2, y - 2, LEFT_PANEL_WIDTH - 4, line_height))
-        
+            pygame.draw.rect(
+                screen, SELECTION_BG, (2, y - 2, LEFT_PANEL_WIDTH - 4, line_height)
+            )
+
         # Show file type icon with better detection
-        if filename.endswith('.sv'):
-            icon = "SV"  # SystemVerilog
-        elif filename.endswith('.v'):
-            icon = "V"   # Legacy Verilog (for backward compatibility)
-        elif filename.endswith('.s'):
-            icon = "S"   # Assembly
+        if filename.endswith(".sv"):
+            icon = "V"  # SystemVerilog
+        elif filename.endswith(".v"):
+            icon = "V"  # Legacy Verilog (for backward compatibility)
+        elif filename.endswith(".s"):
+            icon = "S"  # Assembly
         else:
             icon = "?"
-            
+
         icon_text = FONT.render(f"[{icon}]", True, GREEN)
         screen.blit(icon_text, (5, y))
-        
+
         # Show filename (truncate if too long) - account for icon width
         icon_width = FONT.size(f"[{icon}] ")[0]
         max_name_width = LEFT_PANEL_WIDTH - icon_width - 25
         name_text = filename
         if FONT.size(name_text)[0] > max_name_width:
-            while FONT.size(name_text + "...")[0] > max_name_width and len(name_text) > 0:
+            while (
+                FONT.size(name_text + "...")[0] > max_name_width and len(name_text) > 0
+            ):
                 name_text = name_text[:-1]
             name_text += "..."
-        
+
         file_text = FONT.render(name_text, True, GREEN)
         screen.blit(file_text, (5 + icon_width, y))
-        
+
         # Mark current file
         if filename == current_file:
             current_marker = FONT.render("*", True, GREEN)
             screen.blit(current_marker, (LEFT_PANEL_WIDTH - 15, y))
-        
+
         y += line_height
+
 
 def draw_email_inbox(y_start, y_end, line_height):
     """Draw the email inbox panel with message preview"""
@@ -889,103 +917,121 @@ def draw_email_inbox(y_start, y_end, line_height):
     header_height = line_height + 4
     header_bg = MENU_BG if active_panel == "inbox" else GRAY
     pygame.draw.rect(screen, header_bg, (0, y_start, LEFT_PANEL_WIDTH, header_height))
-    
+
     header_text = FONT.render("INBOX", True, GREEN)
     screen.blit(header_text, (5, y_start + 2))
-    
+
     # Calculate split: top half for email list, bottom half for message preview
     inbox_total_height = y_end - y_start - header_height - 5
     email_list_height = inbox_total_height // 2
     message_preview_height = inbox_total_height - email_list_height
-    
+
     # Email list (top half)
     y = y_start + header_height + 5
     max_emails = email_list_height // line_height
-    
+
     for i, email in enumerate(emails[:max_emails]):
         if i == selected_email_index and active_panel == "inbox":
             # Highlight selected email
-            pygame.draw.rect(screen, SELECTION_BG, (2, y - 2, LEFT_PANEL_WIDTH - 4, line_height))
-        
+            pygame.draw.rect(
+                screen, SELECTION_BG, (2, y - 2, LEFT_PANEL_WIDTH - 4, line_height)
+            )
+
         # Show read/unread status
         status = " " if email["read"] else "●"
         status_text = FONT.render(status, True, GREEN)
         screen.blit(status_text, (5, y))
-        
+
         # Show subject (truncate if too long)
         max_subject_width = LEFT_PANEL_WIDTH - 25
         subject = email["subject"]
         if FONT.size(subject)[0] > max_subject_width:
-            while FONT.size(subject + "...")[0] > max_subject_width and len(subject) > 0:
+            while (
+                FONT.size(subject + "...")[0] > max_subject_width and len(subject) > 0
+            ):
                 subject = subject[:-1]
             subject += "..."
-        
+
         subject_text = FONT.render(subject, True, GREEN)
         screen.blit(subject_text, (15, y))
-        
+
         y += line_height
-    
+
     # Separator line between email list and message preview
     separator_y = y_start + header_height + 5 + email_list_height
-    pygame.draw.line(screen, GREEN, (0, separator_y), (LEFT_PANEL_WIDTH, separator_y), 1)
-    
+    pygame.draw.line(
+        screen, GREEN, (0, separator_y), (LEFT_PANEL_WIDTH, separator_y), 1
+    )
+
     # Message preview (bottom half)
     draw_message_preview(separator_y + 2, y_end, line_height)
+
 
 def draw_message_preview(y_start, y_end, line_height):
     """Draw the selected message content preview"""
     if selected_email_index < len(emails):
         email = emails[selected_email_index]
-        
+
         # Message header
         preview_y = y_start + 5
-        
+
         # From line (truncate if too long)
         from_line = f"From: {email['from']}"
         max_preview_width = LEFT_PANEL_WIDTH - 15
         if FONT.size(from_line)[0] > max_preview_width:
-            while FONT.size(from_line + "...")[0] > max_preview_width and len(from_line) > 5:
+            while (
+                FONT.size(from_line + "...")[0] > max_preview_width
+                and len(from_line) > 5
+            ):
                 from_line = from_line[:-1]
             from_line += "..."
         from_text = FONT.render(from_line, True, GREEN)
         screen.blit(from_text, (5, preview_y))
         preview_y += line_height
-        
+
         # Date line (truncate if too long)
         date_line = f"Date: {email['date']}"
         if FONT.size(date_line)[0] > max_preview_width:
-            while FONT.size(date_line + "...")[0] > max_preview_width and len(date_line) > 5:
+            while (
+                FONT.size(date_line + "...")[0] > max_preview_width
+                and len(date_line) > 5
+            ):
                 date_line = date_line[:-1]
             date_line += "..."
         date_text = FONT.render(date_line, True, GREEN)
         screen.blit(date_text, (5, preview_y))
         preview_y += line_height
-        
+
         # Subject line (truncate if too long)
         subject_line = f"Subject: {email['subject']}"
         if FONT.size(subject_line)[0] > max_preview_width:
-            while FONT.size(subject_line + "...")[0] > max_preview_width and len(subject_line) > 8:
+            while (
+                FONT.size(subject_line + "...")[0] > max_preview_width
+                and len(subject_line) > 8
+            ):
                 subject_line = subject_line[:-1]
             subject_line += "..."
         subject_text = FONT.render(subject_line, True, GREEN)
         screen.blit(subject_text, (5, preview_y))
         preview_y += line_height + 5
-        
+
         # Message content (wrap and truncate to fit) - reserve space for hint
-        hint_space = line_height + 10  # Reserve space for the "ENTER for full message" hint
+        hint_space = (
+            line_height + 10
+        )  # Reserve space for the "ENTER for full message" hint
         available_height = y_end - preview_y - hint_space
         max_lines = max(1, available_height // line_height)  # Ensure at least 1 line
-        
-        content_lines = email['content'].split('\n')
+
+        content_lines = email["content"].split("\n")
         lines_shown = 0
-        
+
         for content_line in content_lines:
             if lines_shown >= max_lines:
                 break
-                
+
             # Word wrap long lines - constrain to panel width
             max_content_width = LEFT_PANEL_WIDTH - 15
-            
+
             # Check if line fits within panel width
             if FONT.size(content_line)[0] <= max_content_width:
                 # Line fits as-is
@@ -995,9 +1041,9 @@ def draw_message_preview(y_start, y_end, line_height):
                 lines_shown += 1
             else:
                 # Wrap line by pixels, not characters
-                words = content_line.split(' ')
+                words = content_line.split(" ")
                 current_line = ""
-                
+
                 for word in words:
                     test_line = current_line + (" " if current_line else "") + word
                     if FONT.size(test_line)[0] <= max_content_width:
@@ -1012,33 +1058,39 @@ def draw_message_preview(y_start, y_end, line_height):
                             if lines_shown >= max_lines:
                                 break
                         current_line = word
-                        
+
                         # If single word is too long, truncate it
                         if FONT.size(current_line)[0] > max_content_width:
-                            while FONT.size(current_line + "...")[0] > max_content_width and len(current_line) > 1:
+                            while (
+                                FONT.size(current_line + "...")[0] > max_content_width
+                                and len(current_line) > 1
+                            ):
                                 current_line = current_line[:-1]
                             current_line += "..."
-                
+
                 # Output final line if any
                 if current_line and lines_shown < max_lines:
                     line_text = FONT.render(current_line, True, GREEN)
                     screen.blit(line_text, (5, preview_y))
                     lines_shown += 1
-        
+
         # Show "Press ENTER for full message" hint if message was truncated
         if lines_shown >= max_lines or len(content_lines) > lines_shown:
             hint_y = y_end - line_height - 5
             hint_text = FONT.render("[ENTER for full message]", True, GREEN)
-            
+
             # Draw black background behind the hint to ensure visibility
             hint_rect = hint_text.get_rect()
             hint_rect.x = 5
             hint_rect.y = hint_y
-            hint_rect.width = min(hint_rect.width + 4, LEFT_PANEL_WIDTH - 10)  # Add padding, respect panel bounds
+            hint_rect.width = min(
+                hint_rect.width + 4, LEFT_PANEL_WIDTH - 10
+            )  # Add padding, respect panel bounds
             hint_rect.height = hint_rect.height + 2  # Add padding
             pygame.draw.rect(screen, BLACK, hint_rect)
-            
+
             screen.blit(hint_text, (5, hint_y))
+
 
 def draw_text_editor(x_start, y_start, width, height, line_height):
     """Draw the text editor panel"""
@@ -1046,50 +1098,77 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
     header_height = line_height + 4
     header_bg = MENU_BG if active_panel == "editor" else GRAY
     pygame.draw.rect(screen, header_bg, (x_start, y_start, width, header_height))
-    
+
     readonly_status = " (READ-ONLY)" if file_read_only else ""
     header_text = FONT.render(f"EDITOR - {current_file}{readonly_status}", True, GREEN)
     screen.blit(header_text, (x_start + 5, y_start + 2))
-    
+
     # Text area
     text_y_start = y_start + header_height + 5
     text_x_margin = x_start + 10
     max_lines = (height - header_height - 10) // line_height
-    
+
     # Draw text with selection highlighting (only if editor is active)
-    bounds = get_selection_bounds() if selection_active and active_panel == "editor" else None
-    
+    bounds = (
+        get_selection_bounds()
+        if selection_active and active_panel == "editor"
+        else None
+    )
+
     for y, line in enumerate(text_buffer[:max_lines]):
         line_y = text_y_start + y * line_height
-        
+
         # Draw selection background if this line is selected
         if bounds:
             start_x, start_y, end_x, end_y = bounds
             if start_y <= y <= end_y:
                 # Calculate selection bounds for this line
                 if y == start_y and y == end_y:
-                    sel_start = text_x_margin + FONT.size(line[:start_x])[0] if line else text_x_margin
-                    sel_end = text_x_margin + FONT.size(line[:end_x])[0] if line else text_x_margin
+                    sel_start = (
+                        text_x_margin + FONT.size(line[:start_x])[0]
+                        if line
+                        else text_x_margin
+                    )
+                    sel_end = (
+                        text_x_margin + FONT.size(line[:end_x])[0]
+                        if line
+                        else text_x_margin
+                    )
                 elif y == start_y:
-                    sel_start = text_x_margin + FONT.size(line[:start_x])[0] if line else text_x_margin
-                    sel_end = text_x_margin + FONT.size(line)[0] if line else text_x_margin
+                    sel_start = (
+                        text_x_margin + FONT.size(line[:start_x])[0]
+                        if line
+                        else text_x_margin
+                    )
+                    sel_end = (
+                        text_x_margin + FONT.size(line)[0] if line else text_x_margin
+                    )
                 elif y == end_y:
                     sel_start = text_x_margin
-                    sel_end = text_x_margin + FONT.size(line[:end_x])[0] if line else text_x_margin
+                    sel_end = (
+                        text_x_margin + FONT.size(line[:end_x])[0]
+                        if line
+                        else text_x_margin
+                    )
                 else:
                     sel_start = text_x_margin
-                    sel_end = text_x_margin + FONT.size(line)[0] if line else text_x_margin
-                
+                    sel_end = (
+                        text_x_margin + FONT.size(line)[0] if line else text_x_margin
+                    )
+
                 sel_width = max(10, sel_end - sel_start)
-                pygame.draw.rect(screen, SELECTION_BG, (sel_start, line_y, sel_width, line_height))
-        
+                pygame.draw.rect(
+                    screen, SELECTION_BG, (sel_start, line_y, sel_width, line_height)
+                )
+
         # Draw text
         text = FONT.render(line, True, GREEN)
         screen.blit(text, (text_x_margin, line_y))
-    
+
     # Draw cursor (only if editor is active)
     if active_panel == "editor":
         draw_cursor(text_x_margin, text_y_start, line_height)
+
 
 def draw_cursor(text_x_margin, text_y_start, line_height):
     """Draw the text cursor"""
@@ -1098,78 +1177,96 @@ def draw_cursor(text_x_margin, text_y_start, line_height):
     if cursor_timer > 500:
         cursor_visible = not cursor_visible
         cursor_timer = 0
-    
+
     if cursor_visible and cursor_y < len(text_buffer):
         cx = text_x_margin + FONT.size(text_buffer[cursor_y][:cursor_x])[0]
         cy = text_y_start + cursor_y * line_height
         cursor_width = max(2, font_size // 9)
         pygame.draw.rect(screen, GREEN, (cx, cy, cursor_width * 5, font_size), 1)
 
+
 def draw_email_modal():
     """Draw the full email modal dialog with scrolling support"""
     if not show_email_modal or not email_modal_content_lines:
         return
-    
+
     # Modal dimensions (80% of screen)
     modal_width = int(WIDTH * 0.8)
     modal_height = int(HEIGHT * 0.8)
     modal_x = (WIDTH - modal_width) // 2
     modal_y = (HEIGHT - modal_height) // 2
-    
+
     # Draw modal background with border
     pygame.draw.rect(screen, BLACK, (modal_x, modal_y, modal_width, modal_height))
     pygame.draw.rect(screen, GREEN, (modal_x, modal_y, modal_width, modal_height), 2)
-    
+
     # Draw modal header
     header_height = font_size + 10
     pygame.draw.rect(screen, MENU_BG, (modal_x, modal_y, modal_width, header_height))
-    
+
     header_text = "EMAIL MESSAGE - UP/DOWN or PgUp/PgDn to scroll, HOME/END to jump, any key to close"
     header_surface = FONT.render(header_text, True, GREEN)
     header_x = modal_x + (modal_width - header_surface.get_width()) // 2
     screen.blit(header_surface, (header_x, modal_y + 5))
-    
+
     # Draw scrolling content
     content_y = modal_y + header_height + 10
     content_x = modal_x + 20
-    
-    modal_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(14, int(font_size * 0.8)))
+
+    modal_font = pygame.font.Font(
+        pygame.font.match_font("couriernew"), max(14, int(font_size * 0.8))
+    )
     line_height = font_size + 2
-    
+
     # Render visible lines based on scroll offset
     start_line = email_modal_scroll_offset
-    end_line = min(start_line + email_modal_max_visible_lines, len(email_modal_content_lines))
-    
+    end_line = min(
+        start_line + email_modal_max_visible_lines, len(email_modal_content_lines)
+    )
+
     for i in range(start_line, end_line):
         line = email_modal_content_lines[i]
         line_surface = modal_font.render(line, True, GREEN)
         screen.blit(line_surface, (content_x, content_y))
         content_y += line_height
-    
+
     # Draw scroll indicators if content is scrollable
     if len(email_modal_content_lines) > email_modal_max_visible_lines:
         # Draw scroll position indicator
         scroll_indicator_x = modal_x + modal_width - 30
         scroll_indicator_y = modal_y + header_height + 10
         scroll_indicator_height = modal_height - header_height - 20
-        
+
         # Scroll bar background
-        pygame.draw.rect(screen, GRAY, (scroll_indicator_x, scroll_indicator_y, 10, scroll_indicator_height))
-        
+        pygame.draw.rect(
+            screen,
+            GRAY,
+            (scroll_indicator_x, scroll_indicator_y, 10, scroll_indicator_height),
+        )
+
         # Scroll bar thumb
         total_lines = len(email_modal_content_lines)
-        thumb_height = max(10, int(scroll_indicator_height * email_modal_max_visible_lines / total_lines))
-        thumb_y = scroll_indicator_y + int(scroll_indicator_height * email_modal_scroll_offset / total_lines)
+        thumb_height = max(
+            10,
+            int(scroll_indicator_height * email_modal_max_visible_lines / total_lines),
+        )
+        thumb_y = scroll_indicator_y + int(
+            scroll_indicator_height * email_modal_scroll_offset / total_lines
+        )
         pygame.draw.rect(screen, GREEN, (scroll_indicator_x, thumb_y, 10, thumb_height))
-        
+
         # Show scroll hints
         if email_modal_scroll_offset > 0:
             up_hint = modal_font.render("↑ UP", True, GREEN)
-            screen.blit(up_hint, (modal_x + modal_width - 60, modal_y + header_height + 5))
-        
+            screen.blit(
+                up_hint, (modal_x + modal_width - 60, modal_y + header_height + 5)
+            )
+
         if email_modal_scroll_offset < total_lines - email_modal_max_visible_lines:
             down_hint = modal_font.render("↓ DOWN", True, GREEN)
-            screen.blit(down_hint, (modal_x + modal_width - 70, modal_y + modal_height - 25))
+            screen.blit(
+                down_hint, (modal_x + modal_width - 70, modal_y + modal_height - 25)
+            )
 
 
 def handle_text_input(event):
@@ -1325,21 +1422,25 @@ def process_key_event(event):
                 email_modal_scroll_offset = 0
                 return
             elif event.key == pygame.K_END:
-                max_scroll = max(0, len(email_modal_content_lines) - email_modal_max_visible_lines)
+                max_scroll = max(
+                    0, len(email_modal_content_lines) - email_modal_max_visible_lines
+                )
                 email_modal_scroll_offset = max_scroll
                 return
             else:
                 # Any other key closes the modal
                 close_email_modal()
                 return
-        
+
         # Check for Alt+F4 or Escape to exit
         keys = pygame.key.get_pressed()
-        if (event.key == pygame.K_F4 and keys[pygame.K_LALT]) or event.key == pygame.K_ESCAPE:
+        if (
+            event.key == pygame.K_F4 and keys[pygame.K_LALT]
+        ) or event.key == pygame.K_ESCAPE:
             running = False
         elif event.key >= pygame.K_F1 and event.key <= pygame.K_F12:
             fkey_num = event.key - pygame.K_F1 + 1
-            
+
             if active_menu:
                 # If menu is open, use F-keys to select menu items
                 menu_items = menus[active_menu]
@@ -1369,7 +1470,7 @@ def process_key_event(event):
 def main():
     global boot_index, boot_done, boot_timer, active_menu, running
     running = True
-    
+
     # Initialize workspace and try to load current level file
     ensure_workspace_dir()
     if not load_file():  # Try to load the current level file
