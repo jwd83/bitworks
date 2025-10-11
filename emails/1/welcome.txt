@@ -1,0 +1,19 @@
+From: Jack Games Support <support@jackgames.com>
+Date: Dec 25, 1991 09:00 AM
+Subject: Welcome to BitWorks Level 1
+Read: false
+
+Welcome to BitWorks Level 1!
+
+Your task is to implement a basic AND gate using Verilog HDL.
+
+The file 1.sv has been created for you with the basic module structure. You need to complete the implementation by adding the logic for an AND gate.
+
+Remember:
+- An AND gate outputs HIGH (1) only when both inputs are HIGH
+- The assign statement is your friend
+- Check the reference files (nand.sv, not.sv) for examples
+
+Good luck!
+
+- The BitWorks Team

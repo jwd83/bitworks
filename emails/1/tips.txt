@@ -1,0 +1,20 @@
+From: Professor Gates <gates@techuni.edu>
+Date: Dec 25, 1991 10:30 AM
+Subject: Quick Tip for AND Gates
+Read: false
+
+Student,
+
+If you're stuck on the AND gate implementation, here's a quick tip:
+
+The AND operation in Verilog is represented by the & operator.
+
+For two inputs 'a' and 'b', the AND gate can be implemented as:
+assign y = a & b;
+
+This is much simpler than you might think!
+
+Also, don't forget to save your work using F1 -> Save File.
+
+Best regards,
+Prof. Gates

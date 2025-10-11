@@ -381,7 +381,7 @@ def prepare_modal_content_for_scrolling():
     available_width = modal_width - 40
     available_height = modal_height - header_height - 20
     
-    small_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(12, font_size // 2))
+    modal_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(14, int(font_size * 0.8)))
     line_height = font_size + 2
     email_modal_max_visible_lines = available_height // line_height
     
@@ -389,7 +389,7 @@ def prepare_modal_content_for_scrolling():
     email_modal_content_lines = []
     content_lines = email_modal_content.split('\n')
     
-    max_chars = available_width // (small_font.size('M')[0])
+    max_chars = available_width // (modal_font.size('M')[0])
     
     for content_line in content_lines:
         if len(content_line) <= max_chars:
@@ -749,7 +749,7 @@ def draw_boot_screen():
     # Show skip instruction in bottom-right corner
     skip_text = "Press ENTER or ESC to skip"
     skip_font = pygame.font.Font(
-        pygame.font.match_font("couriernew"), max(12, font_size // 2)
+        pygame.font.match_font("couriernew"), max(14, int(font_size * 0.8))
     )
     skip_surface = skip_font.render(skip_text, True, GREEN)
     skip_rect = skip_surface.get_rect()
@@ -766,8 +766,6 @@ def draw_workspace():
     # Scale UI elements based on screen size
     menu_height = font_size + 14
     line_height = font_size + 4
-    small_font_size = max(12, font_size // 2)
-    small_font = pygame.font.Font(pygame.font.match_font("couriernew"), small_font_size)
     
     # Draw menu bar across full width
     draw_menu_bar(menu_height)
@@ -777,10 +775,10 @@ def draw_workspace():
     pygame.draw.line(screen, GREEN, (0, FILE_BROWSER_HEIGHT), (LEFT_PANEL_WIDTH, FILE_BROWSER_HEIGHT), 1)
     
     # Draw file browser (top-left)
-    draw_file_browser(menu_height, FILE_BROWSER_HEIGHT, line_height, small_font)
+    draw_file_browser(menu_height, FILE_BROWSER_HEIGHT, line_height)
     
     # Draw email inbox (bottom-left)
-    draw_email_inbox(FILE_BROWSER_HEIGHT, HEIGHT, line_height, small_font)
+    draw_email_inbox(FILE_BROWSER_HEIGHT, HEIGHT, line_height)
     
     # Draw text editor (right two-thirds)
     draw_text_editor(EDITOR_X_OFFSET, menu_height, EDITOR_WIDTH, HEIGHT - menu_height, line_height)
@@ -788,7 +786,7 @@ def draw_workspace():
     # Draw status text in bottom-right corner (if no modal is open)
     if not show_email_modal:
         status_text = f"File: {current_file} | Panel: {active_panel.title()}"
-        status_surface = small_font.render(status_text, True, GREEN)
+        status_surface = FONT.render(status_text, True, GREEN)
         status_rect = status_surface.get_rect()
         status_rect.bottomright = (WIDTH - 10, HEIGHT - 10)
         screen.blit(status_surface, status_rect)
@@ -833,14 +831,14 @@ def draw_dropdown_menu(menu_height, x_margin, menu_spacing):
         screen.blit(t, (x + 8, y + (menu_item_height - font_size) // 2))
         y += menu_item_height
 
-def draw_file_browser(y_start, y_end, line_height, small_font):
+def draw_file_browser(y_start, y_end, line_height):
     """Draw the file browser panel"""
     # Panel header
     header_height = line_height + 4
     header_bg = MENU_BG if active_panel == "files" else GRAY
     pygame.draw.rect(screen, header_bg, (0, y_start, LEFT_PANEL_WIDTH, header_height))
     
-    header_text = small_font.render("FILES (.v/.s)", True, GREEN)
+    header_text = FONT.render("FILES (.v/.s)", True, GREEN)
     screen.blit(header_text, (5, y_start + 2))
     
     # File list
@@ -852,37 +850,44 @@ def draw_file_browser(y_start, y_end, line_height, small_font):
             # Highlight selected file
             pygame.draw.rect(screen, SELECTION_BG, (2, y - 2, LEFT_PANEL_WIDTH - 4, line_height))
         
-        # Show file type icon
-        icon = "V" if filename.endswith('.v') else "S"
-        icon_text = small_font.render(f"[{icon}]", True, GREEN)
+        # Show file type icon with better detection
+        if filename.endswith('.sv') or filename.endswith('.v'):
+            icon = "V"
+        elif filename.endswith('.s'):
+            icon = "S" 
+        else:
+            icon = "?"
+            
+        icon_text = FONT.render(f"[{icon}]", True, GREEN)
         screen.blit(icon_text, (5, y))
         
-        # Show filename (truncate if too long)
-        max_name_width = LEFT_PANEL_WIDTH - 35
+        # Show filename (truncate if too long) - account for icon width
+        icon_width = FONT.size(f"[{icon}] ")[0]
+        max_name_width = LEFT_PANEL_WIDTH - icon_width - 25
         name_text = filename
-        if small_font.size(name_text)[0] > max_name_width:
-            while small_font.size(name_text + "...")[0] > max_name_width and len(name_text) > 0:
+        if FONT.size(name_text)[0] > max_name_width:
+            while FONT.size(name_text + "...")[0] > max_name_width and len(name_text) > 0:
                 name_text = name_text[:-1]
             name_text += "..."
         
-        file_text = small_font.render(name_text, True, GREEN)
-        screen.blit(file_text, (30, y))
+        file_text = FONT.render(name_text, True, GREEN)
+        screen.blit(file_text, (5 + icon_width, y))
         
         # Mark current file
         if filename == current_file:
-            current_marker = small_font.render("*", True, GREEN)
+            current_marker = FONT.render("*", True, GREEN)
             screen.blit(current_marker, (LEFT_PANEL_WIDTH - 15, y))
         
         y += line_height
 
-def draw_email_inbox(y_start, y_end, line_height, small_font):
+def draw_email_inbox(y_start, y_end, line_height):
     """Draw the email inbox panel with message preview"""
     # Panel header
     header_height = line_height + 4
     header_bg = MENU_BG if active_panel == "inbox" else GRAY
     pygame.draw.rect(screen, header_bg, (0, y_start, LEFT_PANEL_WIDTH, header_height))
     
-    header_text = small_font.render("INBOX", True, GREEN)
+    header_text = FONT.render("INBOX", True, GREEN)
     screen.blit(header_text, (5, y_start + 2))
     
     # Calculate split: top half for email list, bottom half for message preview
@@ -901,18 +906,18 @@ def draw_email_inbox(y_start, y_end, line_height, small_font):
         
         # Show read/unread status
         status = " " if email["read"] else "●"
-        status_text = small_font.render(status, True, GREEN)
+        status_text = FONT.render(status, True, GREEN)
         screen.blit(status_text, (5, y))
         
         # Show subject (truncate if too long)
         max_subject_width = LEFT_PANEL_WIDTH - 25
         subject = email["subject"]
-        if small_font.size(subject)[0] > max_subject_width:
-            while small_font.size(subject + "...")[0] > max_subject_width and len(subject) > 0:
+        if FONT.size(subject)[0] > max_subject_width:
+            while FONT.size(subject + "...")[0] > max_subject_width and len(subject) > 0:
                 subject = subject[:-1]
             subject += "..."
         
-        subject_text = small_font.render(subject, True, GREEN)
+        subject_text = FONT.render(subject, True, GREEN)
         screen.blit(subject_text, (15, y))
         
         y += line_height
@@ -922,9 +927,9 @@ def draw_email_inbox(y_start, y_end, line_height, small_font):
     pygame.draw.line(screen, GREEN, (0, separator_y), (LEFT_PANEL_WIDTH, separator_y), 1)
     
     # Message preview (bottom half)
-    draw_message_preview(separator_y + 2, y_end, line_height, small_font)
+    draw_message_preview(separator_y + 2, y_end, line_height)
 
-def draw_message_preview(y_start, y_end, line_height, small_font):
+def draw_message_preview(y_start, y_end, line_height):
     """Draw the selected message content preview"""
     if selected_email_index < len(emails):
         email = emails[selected_email_index]
@@ -932,24 +937,41 @@ def draw_message_preview(y_start, y_end, line_height, small_font):
         # Message header
         preview_y = y_start + 5
         
-        # From line
-        from_text = small_font.render(f"From: {email['from']}", True, GREEN)
+        # From line (truncate if too long)
+        from_line = f"From: {email['from']}"
+        max_preview_width = LEFT_PANEL_WIDTH - 15
+        if FONT.size(from_line)[0] > max_preview_width:
+            while FONT.size(from_line + "...")[0] > max_preview_width and len(from_line) > 5:
+                from_line = from_line[:-1]
+            from_line += "..."
+        from_text = FONT.render(from_line, True, GREEN)
         screen.blit(from_text, (5, preview_y))
         preview_y += line_height
         
-        # Date line
-        date_text = small_font.render(f"Date: {email['date']}", True, GREEN)
+        # Date line (truncate if too long)
+        date_line = f"Date: {email['date']}"
+        if FONT.size(date_line)[0] > max_preview_width:
+            while FONT.size(date_line + "...")[0] > max_preview_width and len(date_line) > 5:
+                date_line = date_line[:-1]
+            date_line += "..."
+        date_text = FONT.render(date_line, True, GREEN)
         screen.blit(date_text, (5, preview_y))
         preview_y += line_height
         
-        # Subject line
-        subject_text = small_font.render(f"Subject: {email['subject']}", True, GREEN)
+        # Subject line (truncate if too long)
+        subject_line = f"Subject: {email['subject']}"
+        if FONT.size(subject_line)[0] > max_preview_width:
+            while FONT.size(subject_line + "...")[0] > max_preview_width and len(subject_line) > 8:
+                subject_line = subject_line[:-1]
+            subject_line += "..."
+        subject_text = FONT.render(subject_line, True, GREEN)
         screen.blit(subject_text, (5, preview_y))
         preview_y += line_height + 5
         
-        # Message content (wrap and truncate to fit)
-        available_height = y_end - preview_y - 5
-        max_lines = available_height // line_height
+        # Message content (wrap and truncate to fit) - reserve space for hint
+        hint_space = line_height + 10  # Reserve space for the "ENTER for full message" hint
+        available_height = y_end - preview_y - hint_space
+        max_lines = max(1, available_height // line_height)  # Ensure at least 1 line
         
         content_lines = email['content'].split('\n')
         lines_shown = 0
@@ -958,45 +980,61 @@ def draw_message_preview(y_start, y_end, line_height, small_font):
             if lines_shown >= max_lines:
                 break
                 
-            # Word wrap long lines
-            max_chars = (LEFT_PANEL_WIDTH - 10) // (small_font.size('M')[0])
+            # Word wrap long lines - constrain to panel width
+            max_content_width = LEFT_PANEL_WIDTH - 15
             
-            if len(content_line) <= max_chars:
+            # Check if line fits within panel width
+            if FONT.size(content_line)[0] <= max_content_width:
                 # Line fits as-is
-                line_text = small_font.render(content_line, True, GREEN)
+                line_text = FONT.render(content_line, True, GREEN)
                 screen.blit(line_text, (5, preview_y))
                 preview_y += line_height
                 lines_shown += 1
             else:
-                # Wrap line
+                # Wrap line by pixels, not characters
                 words = content_line.split(' ')
                 current_line = ""
                 
                 for word in words:
                     test_line = current_line + (" " if current_line else "") + word
-                    if len(test_line) <= max_chars:
+                    if FONT.size(test_line)[0] <= max_content_width:
                         current_line = test_line
                     else:
                         # Output current line and start new one
                         if current_line:
-                            line_text = small_font.render(current_line, True, GREEN)
+                            line_text = FONT.render(current_line, True, GREEN)
                             screen.blit(line_text, (5, preview_y))
                             preview_y += line_height
                             lines_shown += 1
                             if lines_shown >= max_lines:
                                 break
                         current_line = word
+                        
+                        # If single word is too long, truncate it
+                        if FONT.size(current_line)[0] > max_content_width:
+                            while FONT.size(current_line + "...")[0] > max_content_width and len(current_line) > 1:
+                                current_line = current_line[:-1]
+                            current_line += "..."
                 
                 # Output final line if any
                 if current_line and lines_shown < max_lines:
-                    line_text = small_font.render(current_line, True, GREEN)
+                    line_text = FONT.render(current_line, True, GREEN)
                     screen.blit(line_text, (5, preview_y))
                     lines_shown += 1
         
         # Show "Press ENTER for full message" hint if message was truncated
         if lines_shown >= max_lines or len(content_lines) > lines_shown:
             hint_y = y_end - line_height - 5
-            hint_text = small_font.render("[ENTER for full message]", True, GREEN)
+            hint_text = FONT.render("[ENTER for full message]", True, GREEN)
+            
+            # Draw black background behind the hint to ensure visibility
+            hint_rect = hint_text.get_rect()
+            hint_rect.x = 5
+            hint_rect.y = hint_y
+            hint_rect.width = min(hint_rect.width + 4, LEFT_PANEL_WIDTH - 10)  # Add padding, respect panel bounds
+            hint_rect.height = hint_rect.height + 2  # Add padding
+            pygame.draw.rect(screen, BLACK, hint_rect)
+            
             screen.blit(hint_text, (5, hint_y))
 
 def draw_text_editor(x_start, y_start, width, height, line_height):
@@ -1006,9 +1044,8 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
     header_bg = MENU_BG if active_panel == "editor" else GRAY
     pygame.draw.rect(screen, header_bg, (x_start, y_start, width, header_height))
     
-    small_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(12, font_size // 2))
     readonly_status = " (READ-ONLY)" if file_read_only else ""
-    header_text = small_font.render(f"EDITOR - {current_file}{readonly_status}", True, GREEN)
+    header_text = FONT.render(f"EDITOR - {current_file}{readonly_status}", True, GREEN)
     screen.blit(header_text, (x_start + 5, y_start + 2))
     
     # Text area
@@ -1085,8 +1122,7 @@ def draw_email_modal():
     pygame.draw.rect(screen, MENU_BG, (modal_x, modal_y, modal_width, header_height))
     
     header_text = "EMAIL MESSAGE - UP/DOWN or PgUp/PgDn to scroll, HOME/END to jump, any key to close"
-    small_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(12, font_size // 2))
-    header_surface = small_font.render(header_text, True, GREEN)
+    header_surface = FONT.render(header_text, True, GREEN)
     header_x = modal_x + (modal_width - header_surface.get_width()) // 2
     screen.blit(header_surface, (header_x, modal_y + 5))
     
@@ -1094,7 +1130,7 @@ def draw_email_modal():
     content_y = modal_y + header_height + 10
     content_x = modal_x + 20
     
-    small_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(12, font_size // 2))
+    modal_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(14, int(font_size * 0.8)))
     line_height = font_size + 2
     
     # Render visible lines based on scroll offset
@@ -1103,7 +1139,7 @@ def draw_email_modal():
     
     for i in range(start_line, end_line):
         line = email_modal_content_lines[i]
-        line_surface = small_font.render(line, True, GREEN)
+        line_surface = modal_font.render(line, True, GREEN)
         screen.blit(line_surface, (content_x, content_y))
         content_y += line_height
     
@@ -1125,11 +1161,11 @@ def draw_email_modal():
         
         # Show scroll hints
         if email_modal_scroll_offset > 0:
-            up_hint = small_font.render("↑ UP", True, GREEN)
+            up_hint = modal_font.render("↑ UP", True, GREEN)
             screen.blit(up_hint, (modal_x + modal_width - 60, modal_y + header_height + 5))
         
         if email_modal_scroll_offset < total_lines - email_modal_max_visible_lines:
-            down_hint = small_font.render("↓ DOWN", True, GREEN)
+            down_hint = modal_font.render("↓ DOWN", True, GREEN)
             screen.blit(down_hint, (modal_x + modal_width - 70, modal_y + modal_height - 25))
 
 

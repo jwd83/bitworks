@@ -1,0 +1,31 @@
+From: Technical Support Team <techsupport@jackgames.com>
+Date: Dec 25, 1991 11:15 AM
+Subject: Detailed Instructions for Level 1 Implementation
+Read: false
+
+Greetings, Student Developer!
+
+We hope you're enjoying your experience with BitWorks Level 1. This message contains comprehensive information about implementing your AND gate solution.
+
+First, let's review what an AND gate does: An AND gate is a fundamental digital logic gate that implements logical conjunction. It has two or more inputs and one output. The output is HIGH (1) only when ALL inputs are HIGH (1). If any input is LOW (0), the output will be LOW (0).
+
+Here's the truth table for a 2-input AND gate:
+A | B | Output
+0 | 0 |   0
+0 | 1 |   0  
+1 | 0 |   0
+1 | 1 |   1
+
+In Verilog HDL, you can implement this using the assign statement with the bitwise AND operator (&). The syntax is quite straightforward:
+
+assign output_signal = input_a & input_b;
+
+For your specific implementation in 1.sv, you need to replace the comment "// Your implementation here" with the appropriate assign statement.
+
+Remember to save your work frequently using F1 -> Save File. You can also test your implementation by checking the reference files like nand.sv and not.sv to understand the pattern.
+
+Good luck with your implementation, and don't hesitate to check your other emails for additional tips and hints!
+
+Best regards,
+The Technical Support Team
+Jack Games Ltd.
