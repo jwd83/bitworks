@@ -1,0 +1,63 @@
+From: reference@bitworks.edu
+Date: 2025-10-11 08:15
+Subject: NAND Module Reference Documentation
+Read: false
+
+NAND Gate Module Interface Reference
+====================================
+
+MODULE NAME: nand
+FILE: nand.v (pre-provided in your workspace)
+
+INTERFACE:
+```verilog
+module nand(
+    input wire a,    // First input
+    input wire b,    // Second input  
+    output wire y    // Output (NAND result)
+);
+```
+
+FUNCTIONALITY:
+The NAND gate performs the logical NAND operation:
+- Output is 0 (LOW) only when both inputs are 1 (HIGH)
+- Output is 1 (HIGH) in all other cases
+
+TRUTH TABLE:
+| a | b | y |
+|---|---|---|
+| 0 | 0 | 1 |
+| 0 | 1 | 1 |
+| 1 | 0 | 1 |
+| 1 | 1 | 0 |
+
+USAGE EXAMPLE:
+To instantiate the NAND gate in your design:
+
+```verilog
+module your_module(
+    input wire input1,
+    input wire input2,
+    output wire result
+);
+
+    // Instantiate NAND gate
+    nand nand_inst (
+        .a(input1),
+        .b(input2),
+        .y(result)
+    );
+
+endmodule
+```
+
+IMPORTANT NOTES:
+- The module is already provided - do not modify nand.v
+- Use proper instance naming (e.g., nand_inst, nand_gate1, etc.)
+- Connect signals using dot notation (.port(signal))
+- Remember Verilog is case-sensitive
+
+This NAND gate will be your building block for creating the NOT gate!
+
+--
+BitWorks Reference Library

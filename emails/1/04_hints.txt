@@ -1,0 +1,61 @@
+From: hints@bitworks.edu
+Date: 2025-10-11 09:00
+Subject: Implementation Tips for Level 1
+Read: false
+
+Level 1 Implementation Tips
+===========================
+
+Having trouble getting started? Here are some helpful tips for implementing your NOT gate:
+
+STEP-BY-STEP APPROACH:
+
+1. CREATE THE MODULE SKELETON:
+   Start with the basic module structure:
+   ```verilog
+   module not(
+       input wire a,
+       output wire y
+   );
+   
+   endmodule
+   ```
+
+2. ADD THE NAND INSTANTIATION:
+   Inside your module, instantiate the nand component:
+   ```verilog
+   nand nand_gate (
+       .a(a),
+       .b(a),    // Key insight: connect both inputs to 'a'
+       .y(y)
+   );
+   ```
+
+3. UNDERSTAND THE LOGIC:
+   Why does NAND(a,a) = NOT(a)?
+   - When a=0: NAND(0,0) = NOT(0 AND 0) = NOT(0) = 1
+   - When a=1: NAND(1,1) = NOT(1 AND 1) = NOT(1) = 0
+   
+   This is exactly the NOT gate truth table!
+
+COMMON MISTAKES TO AVOID:
+- Don't forget the semicolon after endmodule
+- Make sure instance names are unique (nand_gate, nand_inst, etc.)
+- Use dot notation for port connections (.port_name(signal))
+- Double-check that both NAND inputs connect to the same signal
+
+TESTING YOUR WORK:
+Once you've implemented your NOT gate, mentally trace through:
+- Input a=0 → NAND inputs both 0 → NAND output 1 → y=1 ✓
+- Input a=1 → NAND inputs both 1 → NAND output 0 → y=0 ✓
+
+VERILOG SYNTAX REMINDER:
+- Modules end with 'endmodule'
+- Wire connections use dot notation: .port(wire)
+- Instance format: module_name instance_name (connections);
+
+You've got this! The solution is simpler than you might think.
+
+--
+Teaching Assistant Sarah Kim
+BitWorks Help Desk

@@ -1,0 +1,65 @@
+From: assignments@bitworks.edu
+Date: 2025-10-11 08:30
+Subject: Level 1 Assignment - NOT Gate Implementation
+Read: false
+
+ASSIGNMENT: Create a NOT Gate (Inverter)
+========================================
+
+OBJECTIVE:
+Design and implement a NOT gate module using the provided NAND gate component.
+
+SPECIFICATIONS:
+- Module name: not
+- Input port: input wire a
+- Output port: output wire y
+- File name: workspace/not.v
+- Must use the provided nand module
+
+EXPECTED BEHAVIOR:
+Your NOT gate should implement logical inversion:
+- When input a = 0, output y = 1
+- When input a = 1, output y = 0
+
+TRUTH TABLE:
+| a | y |
+|---|---|
+| 0 | 1 |
+| 1 | 0 |
+
+IMPLEMENTATION HINT:
+A NOT gate can be created from a NAND gate by connecting both NAND inputs to the same signal. This works because:
+- NAND(a,a) = NOT(a AND a) = NOT(a)
+
+REQUIRED MODULE STRUCTURE:
+```verilog
+module not(
+    input wire a,     // Input signal
+    output wire y     // Inverted output
+);
+
+    // Your implementation here using nand module
+    
+endmodule
+```
+
+GRADING CRITERIA:
+- Correct module interface (25 points)
+- Proper NAND instantiation (25 points)  
+- Correct signal connections (25 points)
+- Working inversion logic (25 points)
+
+SUBMISSION:
+Save your completed module as workspace/not.v
+The system will automatically verify your implementation.
+
+NEED HELP?
+- Review the NAND reference documentation
+- Study the example instantiation syntax
+- Remember to connect both NAND inputs to the same signal
+
+Good luck!
+
+--
+Dr. Michael Torres
+BitWorks Assignment Coordinator

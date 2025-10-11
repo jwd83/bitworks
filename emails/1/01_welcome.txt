@@ -1,0 +1,39 @@
+From: instructor@bitworks.edu
+Date: 2025-10-11 08:00
+Subject: Welcome to Digital Logic Design - Level 1
+Read: false
+
+Welcome to BitWorks Digital Logic Design Course!
+
+LEVEL 1: Building Basic Logic Gates
+===================================
+
+Congratulations on starting your journey into digital logic design! In this first level, you'll learn the fundamentals of building logic gates using Verilog.
+
+YOUR MISSION:
+Create a NOT gate (inverter) module using the provided NAND gate component.
+
+LEARNING OBJECTIVES:
+- Understanding module instantiation in Verilog
+- Using primitive gates to build complex logic
+- Proper input/output port declarations
+- Module naming conventions
+
+RESOURCES PROVIDED:
+- nand.v module (pre-implemented NAND gate)
+- Template files in workspace folder
+- Reference documentation in subsequent emails
+
+GETTING STARTED:
+1. Read the technical specification email for detailed requirements
+2. Study the NAND module interface in the reference email  
+3. Create your NOT gate module in workspace/not.v
+4. Test your implementation using the provided test cases
+
+Remember: A NOT gate can be implemented using a single NAND gate with both inputs tied together!
+
+Good luck, and welcome to the world of digital design!
+
+--
+Prof. Sarah Chen
+BitWorks Digital Logic Department

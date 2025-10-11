@@ -66,6 +66,8 @@ uv run python
 - **Message Preview**: Shows From, Date, Subject, and content preview
 - **Full Message Modal**: Press Enter to view complete email in modal dialog
 - **Navigation**: Arrow keys to select emails, Enter for full view
+- **File-Based System**: Loads emails from `emails\{level}\` directory
+- **Level-Based Learning**: Educational content organized by game levels
 
 ### **Text Editor Panel** (Right Two-Thirds):
 - **Full-Featured Editor**: All text editing, selection, and clipboard capabilities
@@ -161,6 +163,28 @@ When extending this codebase:
 - **Smart Filtering**: Only navigation and text editing keys repeat (not function keys)
 - **Supported Keys**: Arrow keys, Backspace, Delete, Home, End, and printable characters
 
+## Level-Based Learning System
+
+### **Level 1 Objectives**: 
+- **Goal**: Create a NOT gate (inverter) using the provided NAND gate module
+- **Key Skills**: Module instantiation, port connections, digital logic understanding
+- **Resources**: 5 instructional emails covering theory, reference, assignment, hints, and advanced concepts
+- **Files**: `nand.v` (provided component), `not_template.v` (student template)
+- **Challenge**: Understanding that NAND(a,a) = NOT(a)
+
+### **Email Learning System**:
+- **Welcome Email**: Course introduction and level overview
+- **Reference Documentation**: Complete NAND module interface and usage examples  
+- **Assignment Specification**: Detailed requirements and grading criteria
+- **Implementation Hints**: Step-by-step guidance and common mistakes
+- **Advanced Concepts**: Theory background and real-world connections
+
+### **Game Progression**:
+- **File-Based Content**: Emails loaded from `emails\{level}\` directory structure
+- **Scalable Design**: Easy to add new levels by creating new email folders
+- **Educational Focus**: Each level teaches specific digital design concepts
+- **Practical Application**: Real Verilog code development with immediate feedback
+
 ## Technical Notes
 
 - The application uses pygame-ce (Community Edition) rather than standard pygame for better maintained libraries and additional features
@@ -169,3 +193,5 @@ When extending this codebase:
 - Cursor blinking is implemented with a timer-based visibility toggle
 - Text selection uses coordinate-based highlighting for precise visual feedback
 - Clipboard operations work with both single-line and multi-line text
+- Email system dynamically loads content from structured file directories
+- Level progression system supports expandable educational content

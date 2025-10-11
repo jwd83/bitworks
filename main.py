@@ -89,86 +89,8 @@ selected_file_index = 0
 current_file = "1.v"  # Currently opened file
 
 # Email inbox state
-emails = [
-    {
-        "from": "system@bitworks", 
-        "subject": "Welcome to BitWorks IDE", 
-        "read": False,
-        "date": "2025-10-11 09:00",
-        "content": """Welcome to BitWorks IDE v1.0!
-
-This integrated development environment is designed for Verilog development and hardware design.
-
-Features:
-- Multi-panel workspace with file browser
-- Syntax highlighting for Verilog (.v) and Assembly (.s) files
-- Integrated message system for build reports and notifications
-- Full text editing with modern features
-
-Press TAB to cycle between panels, or use the View menu (F3) to navigate.
-
-Happy coding!
-
---
-BitWorks System"""
-    },
-    {
-        "from": "compiler@bitworks", 
-        "subject": "Synthesis Report Available", 
-        "read": True,
-        "date": "2025-10-11 14:32",
-        "content": """Synthesis completed successfully.
-
-Module: counter.v
-Target: FPGA XC7A35T
-Status: PASSED
-
-Resource Utilization:
-- LUTs: 8/20800 (<1%)
-- FFs: 8/41600 (<1%)
-- Block RAM: 0/50 (0%)
-- DSPs: 0/90 (0%)
-
-Timing Analysis:
-- Max Frequency: 450.23 MHz
-- Setup: PASSED
-- Hold: PASSED
-
-Output files generated in workspace/build/
-
---
-BitWorks Synthesis Engine"""
-    },
-    {
-        "from": "debugger@bitworks", 
-        "subject": "Waveform Analysis Complete", 
-        "read": False,
-        "date": "2025-10-11 16:15",
-        "content": """Waveform analysis finished.
-
-Simulation: testbench.v
-Duration: 1000ns
-Status: COMPLETED
-
-Key Findings:
-- Reset signal properly initializes counter to 0x00
-- Clock period: 10ns (100MHz)
-- Counter increments correctly on each rising edge
-- No timing violations detected
-- No X or Z states observed
-
-Signal Statistics:
-- clk: 100 transitions
-- reset: 2 transitions  
-- count[7:0]: 50 value changes
-
-Waveform file: workspace/sim/waves.vcd
-Log file: workspace/sim/simulation.log
-
---
-BitWorks Waveform Analyzer"""
-    },
-]
+emails = []  # Will be loaded from files
+current_level = 1  # Current game level
 selected_email_index = 0
 active_panel = "editor"  # "editor", "files", "inbox"
 show_email_modal = False  # Whether to show full email modal
@@ -312,6 +234,75 @@ def save_current_file():
     except Exception as e:
         print(f"Error saving file {current_file}: {e}")
         return False
+
+def load_emails_for_level(level):
+    """Load email messages from files for the specified level"""
+    global emails
+    emails = []
+    
+    email_dir = os.path.join("emails", str(level))
+    if not os.path.exists(email_dir):
+        print(f"Email directory not found: {email_dir}")
+        return False
+    
+    try:
+        # Get all .txt files in the level directory and sort them
+        email_files = [f for f in os.listdir(email_dir) if f.endswith('.txt')]
+        email_files.sort()
+        
+        for filename in email_files:
+            file_path = os.path.join(email_dir, filename)
+            email = parse_email_file(file_path)
+            if email:
+                emails.append(email)
+        
+        print(f"Loaded {len(emails)} emails for level {level}")
+        return True
+        
+    except Exception as e:
+        print(f"Error loading emails for level {level}: {e}")
+        return False
+
+def parse_email_file(file_path):
+    """Parse an individual email file"""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read().strip()
+        
+        lines = content.split('\n')
+        email = {
+            "from": "",
+            "date": "",
+            "subject": "",
+            "read": False,
+            "content": ""
+        }
+        
+        # Parse header fields
+        content_start = 0
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if line.startswith('From: '):
+                email['from'] = line[6:]
+            elif line.startswith('Date: '):
+                email['date'] = line[6:]
+            elif line.startswith('Subject: '):
+                email['subject'] = line[9:]
+            elif line.startswith('Read: '):
+                email['read'] = line[6:].lower() == 'true'
+            elif line == '' and i > 0:  # First empty line after headers
+                content_start = i + 1
+                break
+        
+        # Everything after the headers is content
+        if content_start < len(lines):
+            email['content'] = '\n'.join(lines[content_start:])
+        
+        return email
+        
+    except Exception as e:
+        print(f"Error parsing email file {file_path}: {e}")
+        return None
 
 def switch_panel(panel_name):
     """Switch to a different panel"""
@@ -1250,8 +1241,10 @@ def main():
                 boot_done = True
             draw_boot_screen()
         else:
-            # Update file list periodically or on demand
+            # Update file list and load emails on first run
             scan_workspace_files()
+            if not emails:  # Load emails only once
+                load_emails_for_level(current_level)
             draw_workspace()
 
     pygame.quit()
