@@ -1,13 +1,12 @@
-// Level 1 - Basic Gate Implementation
-// TODO: Implement a simple AND gate
-// Inputs: a, b
-// Output: y
-
-module and_gate (
-    input a,
-    input b,
-    output y
+// NAND gate module
+module not_using_nand (
+    input  logic a,
+    output logic y
 );
-    // Your implementation here
-    
+    // Instantiate the NAND module
+    nand_gate u_nand (
+        .a(a),
+        .b(a),   // tie both inputs together
+        .y(y)
+    );
 endmodule
