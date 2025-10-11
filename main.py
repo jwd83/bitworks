@@ -76,11 +76,32 @@ selection_end_x, selection_end_y = None, None
 selection_active = False
 clipboard = ""  # Simple clipboard storage
 
+# Workspace layout
+LEFT_PANEL_WIDTH = WIDTH // 3  # Left third for browser and inbox
+FILE_BROWSER_HEIGHT = HEIGHT // 2  # Top half of left panel
+INBOX_HEIGHT = HEIGHT - FILE_BROWSER_HEIGHT  # Bottom half of left panel
+EDITOR_WIDTH = WIDTH - LEFT_PANEL_WIDTH  # Right two-thirds for editor
+EDITOR_X_OFFSET = LEFT_PANEL_WIDTH  # Editor starts after left panel
+
+# File browser state
+workspace_files = []
+selected_file_index = 0
+current_file = "1.v"  # Currently opened file
+
+# Email inbox state
+emails = [
+    {"from": "system@bitworks", "subject": "Welcome to BitWorks IDE", "read": False},
+    {"from": "compiler@bitworks", "subject": "Synthesis Report Available", "read": True},
+    {"from": "debugger@bitworks", "subject": "Waveform Analysis Complete", "read": False},
+]
+selected_email_index = 0
+active_panel = "editor"  # "editor", "files", "inbox"
+
 active_menu = None
 menus = {
-    "F1": ["New Verilog File (.v)", "Open Verilog File", "Save Verilog File", "Exit"],
+    "F1": ["New File", "Open File", "Save File", "Exit"],
     "F2": ["Cut", "Copy", "Paste"],
-    "F3": ["About"],
+    "F3": ["Files Panel", "Inbox Panel", "Editor Panel"],  # Panel navigation
 }
 
 # Key repeat system
@@ -155,6 +176,99 @@ def new_file():
     text_buffer = [""]
     cursor_x, cursor_y = 0, 0
     clear_selection()
+
+def scan_workspace_files():
+    """Scan workspace directory for .v and .s files"""
+    global workspace_files
+    workspace_files = []
+    
+    try:
+        ensure_workspace_dir()
+        if os.path.exists("workspace"):
+            for filename in sorted(os.listdir("workspace")):
+                if filename.endswith(('.v', '.s')):
+                    file_path = os.path.join("workspace", filename)
+                    if os.path.isfile(file_path):
+                        workspace_files.append(filename)
+    except Exception as e:
+        print(f"Error scanning workspace: {e}")
+    
+    # Ensure current file is in the list
+    if current_file not in workspace_files and current_file:
+        workspace_files.insert(0, current_file)
+
+def load_file_by_name(filename):
+    """Load a specific file by name"""
+    global text_buffer, cursor_x, cursor_y, current_file
+    try:
+        ensure_workspace_dir()
+        file_path = os.path.join("workspace", filename)
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                if content:
+                    text_buffer = content.split("\n")
+                else:
+                    text_buffer = [""]
+                cursor_x, cursor_y = 0, 0
+                current_file = filename
+                clear_selection()
+                print(f"Loaded file: {filename}")
+                return True
+        else:
+            print(f"File not found: {filename}")
+            return False
+    except Exception as e:
+        print(f"Error loading file {filename}: {e}")
+        return False
+
+def save_current_file():
+    """Save current text buffer to the current file"""
+    global current_file
+    try:
+        ensure_workspace_dir()
+        file_path = os.path.join("workspace", current_file)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(text_buffer))
+        print(f"Saved file: {current_file}")
+        return True
+    except Exception as e:
+        print(f"Error saving file {current_file}: {e}")
+        return False
+
+def switch_panel(panel_name):
+    """Switch to a different panel"""
+    global active_panel
+    if panel_name in ["editor", "files", "inbox"]:
+        active_panel = panel_name
+        print(f"Switched to {panel_name} panel")
+        return True
+    return False
+
+def handle_panel_navigation(event):
+    """Handle navigation within panels"""
+    global selected_file_index, selected_email_index, workspace_files, emails
+    
+    if active_panel == "files":
+        if event.key == pygame.K_UP:
+            selected_file_index = max(0, selected_file_index - 1)
+        elif event.key == pygame.K_DOWN:
+            selected_file_index = min(len(workspace_files) - 1, selected_file_index + 1)
+        elif event.key == pygame.K_RETURN:
+            if workspace_files and selected_file_index < len(workspace_files):
+                filename = workspace_files[selected_file_index]
+                if load_file_by_name(filename):
+                    switch_panel("editor")
+    
+    elif active_panel == "inbox":
+        if event.key == pygame.K_UP:
+            selected_email_index = max(0, selected_email_index - 1)
+        elif event.key == pygame.K_DOWN:
+            selected_email_index = min(len(emails) - 1, selected_email_index + 1)
+        elif event.key == pygame.K_RETURN:
+            if selected_email_index < len(emails):
+                emails[selected_email_index]["read"] = True
+                print(f"Opened email: {emails[selected_email_index]['subject']}")
 
 
 def clear_selection():
@@ -398,17 +512,15 @@ def handle_menu_action(menu, item_index):
         menu_items = menus["F1"]
         if item_index < len(menu_items):
             action = menu_items[item_index]
-            if action == "New":
+            if action == "New File":
                 new_file()
                 print("New file created")
-            elif action == "Open":
-                if load_file():
-                    print("File loaded from workspace/1.v")
-                else:
-                    print("No file found at workspace/1.v")
-            elif action == "Save":
-                if save_file():
-                    print("File saved to workspace/1.v")
+            elif action == "Open File":
+                switch_panel("files")
+                print("Switched to files panel - select a file to open")
+            elif action == "Save File":
+                if save_current_file():
+                    print(f"Saved current file: {current_file}")
                 else:
                     print("Error saving file")
             elif action == "Exit":
@@ -430,8 +542,12 @@ def handle_menu_action(menu, item_index):
         menu_items = menus["F3"]
         if item_index < len(menu_items):
             action = menu_items[item_index]
-            print(f"Help action: {action} (not yet implemented)")
-        # Add Help menu actions here as needed
+            if action == "Files Panel":
+                switch_panel("files")
+            elif action == "Inbox Panel":
+                switch_panel("inbox")
+            elif action == "Editor Panel":
+                switch_panel("editor")
 
     return True  # Continue running
 
@@ -461,113 +577,219 @@ def draw_boot_screen():
     pygame.display.flip()
 
 
-def draw_editor():
+def draw_workspace():
+    """Draw the multi-column workspace layout"""
     screen.fill(BLACK)
-
+    
     # Scale UI elements based on screen size
-    x_margin = WIDTH // 50  # Text margin from left
-    menu_height = font_size + 14  # Menu bar height
-    text_yoff = menu_height + 10  # Text area Y offset
-    line_height = font_size + 4  # Line spacing
-    menu_spacing = WIDTH // 8  # Space between menu items
-    menu_item_height = font_size + 8  # Height of dropdown menu items
-    menu_item_width = WIDTH // 8  # Width of dropdown menu items
+    menu_height = font_size + 14
+    line_height = font_size + 4
+    small_font_size = max(12, font_size // 2)
+    small_font = pygame.font.Font(pygame.font.match_font("couriernew"), small_font_size)
+    
+    # Draw menu bar across full width
+    draw_menu_bar(menu_height)
+    
+    # Draw vertical separator lines
+    pygame.draw.line(screen, GREEN, (LEFT_PANEL_WIDTH, menu_height), (LEFT_PANEL_WIDTH, HEIGHT), 1)
+    pygame.draw.line(screen, GREEN, (0, FILE_BROWSER_HEIGHT), (LEFT_PANEL_WIDTH, FILE_BROWSER_HEIGHT), 1)
+    
+    # Draw file browser (top-left)
+    draw_file_browser(menu_height, FILE_BROWSER_HEIGHT, line_height, small_font)
+    
+    # Draw email inbox (bottom-left)
+    draw_email_inbox(FILE_BROWSER_HEIGHT, HEIGHT, line_height, small_font)
+    
+    # Draw text editor (right two-thirds)
+    draw_text_editor(EDITOR_X_OFFSET, menu_height, EDITOR_WIDTH, HEIGHT - menu_height, line_height)
+    
+    # Draw status text in bottom-right corner
+    status_text = f"File: {current_file} | Panel: {active_panel.title()}"
+    status_surface = small_font.render(status_text, True, GREEN)
+    status_rect = status_surface.get_rect()
+    status_rect.bottomright = (WIDTH - 10, HEIGHT - 10)
+    screen.blit(status_surface, status_rect)
+    
+    pygame.display.flip()
 
-    # Draw text area with selection highlighting
-    bounds = get_selection_bounds() if selection_active else None
+def draw_menu_bar(menu_height):
+    """Draw the menu bar across the top"""
+    pygame.draw.rect(screen, MENU_BG, (0, 0, WIDTH, menu_height))
+    
+    # Update menu labels to reflect new functionality
+    fkeys = ["F1-File", "F2-Edit", "F3-View"]
+    x_margin = WIDTH // 50
+    menu_spacing = WIDTH // 8
+    x = x_margin
+    
+    for label in fkeys:
+        txt = FONT.render(label, True, GREEN)
+        screen.blit(txt, (x, (menu_height - font_size) // 2))
+        x += menu_spacing
+    
+    # Draw dropdown menus if active
+    if active_menu:
+        draw_dropdown_menu(menu_height, x_margin, menu_spacing)
 
-    for y, line in enumerate(text_buffer):
-        line_y = text_yoff + y * line_height
+def draw_dropdown_menu(menu_height, x_margin, menu_spacing):
+    """Draw dropdown menu"""
+    menu_items = menus[active_menu]
+    idx = ["F1", "F2", "F3"].index(active_menu)
+    x = x_margin + menu_spacing * idx
+    y = menu_height
+    menu_item_height = font_size + 8
+    menu_item_width = WIDTH // 8
+    
+    for i, item in enumerate(menu_items):
+        pygame.draw.rect(screen, GRAY, (x, y, menu_item_width, menu_item_height))
+        fkey_text = f"F{i+1}-{item}"
+        t = FONT.render(fkey_text, True, GREEN)
+        screen.blit(t, (x + 8, y + (menu_item_height - font_size) // 2))
+        y += menu_item_height
 
+def draw_file_browser(y_start, y_end, line_height, small_font):
+    """Draw the file browser panel"""
+    # Panel header
+    header_height = line_height + 4
+    header_bg = MENU_BG if active_panel == "files" else GRAY
+    pygame.draw.rect(screen, header_bg, (0, y_start, LEFT_PANEL_WIDTH, header_height))
+    
+    header_text = small_font.render("FILES (.v/.s)", True, GREEN)
+    screen.blit(header_text, (5, y_start + 2))
+    
+    # File list
+    y = y_start + header_height + 5
+    max_files = (FILE_BROWSER_HEIGHT - header_height - 10) // line_height
+    
+    for i, filename in enumerate(workspace_files[:max_files]):
+        if i == selected_file_index and active_panel == "files":
+            # Highlight selected file
+            pygame.draw.rect(screen, SELECTION_BG, (2, y - 2, LEFT_PANEL_WIDTH - 4, line_height))
+        
+        # Show file type icon
+        icon = "V" if filename.endswith('.v') else "S"
+        icon_text = small_font.render(f"[{icon}]", True, GREEN)
+        screen.blit(icon_text, (5, y))
+        
+        # Show filename (truncate if too long)
+        max_name_width = LEFT_PANEL_WIDTH - 35
+        name_text = filename
+        if small_font.size(name_text)[0] > max_name_width:
+            while small_font.size(name_text + "...")[0] > max_name_width and len(name_text) > 0:
+                name_text = name_text[:-1]
+            name_text += "..."
+        
+        file_text = small_font.render(name_text, True, GREEN)
+        screen.blit(file_text, (30, y))
+        
+        # Mark current file
+        if filename == current_file:
+            current_marker = small_font.render("*", True, GREEN)
+            screen.blit(current_marker, (LEFT_PANEL_WIDTH - 15, y))
+        
+        y += line_height
+
+def draw_email_inbox(y_start, y_end, line_height, small_font):
+    """Draw the email inbox panel"""
+    # Panel header
+    header_height = line_height + 4
+    header_bg = MENU_BG if active_panel == "inbox" else GRAY
+    pygame.draw.rect(screen, header_bg, (0, y_start, LEFT_PANEL_WIDTH, header_height))
+    
+    header_text = small_font.render("INBOX", True, GREEN)
+    screen.blit(header_text, (5, y_start + 2))
+    
+    # Email list
+    y = y_start + header_height + 5
+    max_emails = (INBOX_HEIGHT - header_height - 10) // line_height
+    
+    for i, email in enumerate(emails[:max_emails]):
+        if i == selected_email_index and active_panel == "inbox":
+            # Highlight selected email
+            pygame.draw.rect(screen, SELECTION_BG, (2, y - 2, LEFT_PANEL_WIDTH - 4, line_height))
+        
+        # Show read/unread status
+        status = " " if email["read"] else "●"
+        status_text = small_font.render(status, True, GREEN)
+        screen.blit(status_text, (5, y))
+        
+        # Show subject (truncate if too long)
+        max_subject_width = LEFT_PANEL_WIDTH - 25
+        subject = email["subject"]
+        if small_font.size(subject)[0] > max_subject_width:
+            while small_font.size(subject + "...")[0] > max_subject_width and len(subject) > 0:
+                subject = subject[:-1]
+            subject += "..."
+        
+        subject_text = small_font.render(subject, True, GREEN)
+        screen.blit(subject_text, (15, y))
+        
+        y += line_height
+
+def draw_text_editor(x_start, y_start, width, height, line_height):
+    """Draw the text editor panel"""
+    # Panel header
+    header_height = line_height + 4
+    header_bg = MENU_BG if active_panel == "editor" else GRAY
+    pygame.draw.rect(screen, header_bg, (x_start, y_start, width, header_height))
+    
+    small_font = pygame.font.Font(pygame.font.match_font("couriernew"), max(12, font_size // 2))
+    header_text = small_font.render(f"EDITOR - {current_file}", True, GREEN)
+    screen.blit(header_text, (x_start + 5, y_start + 2))
+    
+    # Text area
+    text_y_start = y_start + header_height + 5
+    text_x_margin = x_start + 10
+    max_lines = (height - header_height - 10) // line_height
+    
+    # Draw text with selection highlighting (only if editor is active)
+    bounds = get_selection_bounds() if selection_active and active_panel == "editor" else None
+    
+    for y, line in enumerate(text_buffer[:max_lines]):
+        line_y = text_y_start + y * line_height
+        
         # Draw selection background if this line is selected
         if bounds:
             start_x, start_y, end_x, end_y = bounds
             if start_y <= y <= end_y:
                 # Calculate selection bounds for this line
                 if y == start_y and y == end_y:
-                    # Single line selection
-                    sel_start = (
-                        x_margin + FONT.size(line[:start_x])[0] if line else x_margin
-                    )
-                    sel_end = (
-                        x_margin + FONT.size(line[:end_x])[0] if line else x_margin
-                    )
+                    sel_start = text_x_margin + FONT.size(line[:start_x])[0] if line else text_x_margin
+                    sel_end = text_x_margin + FONT.size(line[:end_x])[0] if line else text_x_margin
                 elif y == start_y:
-                    # Start of multi-line selection
-                    sel_start = (
-                        x_margin + FONT.size(line[:start_x])[0] if line else x_margin
-                    )
-                    sel_end = x_margin + FONT.size(line)[0] if line else x_margin
+                    sel_start = text_x_margin + FONT.size(line[:start_x])[0] if line else text_x_margin
+                    sel_end = text_x_margin + FONT.size(line)[0] if line else text_x_margin
                 elif y == end_y:
-                    # End of multi-line selection
-                    sel_start = x_margin
-                    sel_end = (
-                        x_margin + FONT.size(line[:end_x])[0] if line else x_margin
-                    )
+                    sel_start = text_x_margin
+                    sel_end = text_x_margin + FONT.size(line[:end_x])[0] if line else text_x_margin
                 else:
-                    # Middle of multi-line selection
-                    sel_start = x_margin
-                    sel_end = x_margin + FONT.size(line)[0] if line else x_margin
-
-                # Draw selection background
-                sel_width = max(
-                    10, sel_end - sel_start
-                )  # Minimum width for empty lines
-                pygame.draw.rect(
-                    screen, SELECTION_BG, (sel_start, line_y, sel_width, line_height)
-                )
-
+                    sel_start = text_x_margin
+                    sel_end = text_x_margin + FONT.size(line)[0] if line else text_x_margin
+                
+                sel_width = max(10, sel_end - sel_start)
+                pygame.draw.rect(screen, SELECTION_BG, (sel_start, line_y, sel_width, line_height))
+        
         # Draw text
         text = FONT.render(line, True, GREEN)
-        screen.blit(text, (x_margin, line_y))
+        screen.blit(text, (text_x_margin, line_y))
+    
+    # Draw cursor (only if editor is active)
+    if active_panel == "editor":
+        draw_cursor(text_x_margin, text_y_start, line_height)
 
-    # Draw cursor
+def draw_cursor(text_x_margin, text_y_start, line_height):
+    """Draw the text cursor"""
     global cursor_timer, cursor_visible
     cursor_timer += clock.get_time()
     if cursor_timer > 500:
         cursor_visible = not cursor_visible
         cursor_timer = 0
-
-    if cursor_visible:
-        cx = x_margin + FONT.size(text_buffer[cursor_y][:cursor_x])[0]
-        cy = text_yoff + cursor_y * line_height
+    
+    if cursor_visible and cursor_y < len(text_buffer):
+        cx = text_x_margin + FONT.size(text_buffer[cursor_y][:cursor_x])[0]
+        cy = text_y_start + cursor_y * line_height
         cursor_width = max(2, font_size // 9)
         pygame.draw.rect(screen, GREEN, (cx, cy, cursor_width * 5, font_size), 1)
-
-    # Draw menu bar (top layer)
-    pygame.draw.rect(screen, MENU_BG, (0, 0, WIDTH, menu_height))
-    fkeys = ["F1-File", "F2-Edit", "F3-Help"]
-    x = x_margin
-    for label in fkeys:
-        txt = FONT.render(label, True, GREEN)
-        screen.blit(txt, (x, (menu_height - font_size) // 2))
-        x += menu_spacing
-
-    # Draw dropdown menus if active (top layer)
-    if active_menu:
-        menu_items = menus[active_menu]
-        idx = ["F1", "F2", "F3"].index(active_menu)
-        x = x_margin + menu_spacing * idx
-        y = menu_height
-        for i, item in enumerate(menu_items):
-            pygame.draw.rect(screen, GRAY, (x, y, menu_item_width, menu_item_height))
-            # Show F-key number before menu item
-            fkey_text = f"F{i+1}-{item}"
-            t = FONT.render(fkey_text, True, GREEN)
-            screen.blit(t, (x + 8, y + (menu_item_height - font_size) // 2))
-            y += menu_item_height
-
-    # Draw status text in bottom-right corner
-    status_text = "ESC or Alt+F4 to exit"
-    status_font = pygame.font.Font(
-        pygame.font.match_font("couriernew"), max(12, font_size // 2)
-    )
-    status_surface = status_font.render(status_text, True, GREEN)
-    status_rect = status_surface.get_rect()
-    status_rect.bottomright = (WIDTH - 10, HEIGHT - 10)
-    screen.blit(status_surface, status_rect)
-
-    pygame.display.flip()
 
 
 def handle_text_input(event):
@@ -688,13 +910,11 @@ def process_key_event(event):
     elif boot_done:
         # Check for Alt+F4 or Escape to exit
         keys = pygame.key.get_pressed()
-        if (
-            event.key == pygame.K_F4 and keys[pygame.K_LALT]
-        ) or event.key == pygame.K_ESCAPE:
+        if (event.key == pygame.K_F4 and keys[pygame.K_LALT]) or event.key == pygame.K_ESCAPE:
             running = False
         elif event.key >= pygame.K_F1 and event.key <= pygame.K_F12:
             fkey_num = event.key - pygame.K_F1 + 1
-
+            
             if active_menu:
                 # If menu is open, use F-keys to select menu items
                 menu_items = menus[active_menu]
@@ -702,14 +922,23 @@ def process_key_event(event):
                     if not handle_menu_action(active_menu, fkey_num - 1):
                         running = False  # Exit was selected
                     active_menu = None  # Close menu after selection
-                # If F-key is beyond menu items, don't close menu
             else:
                 # If no menu is open, open the corresponding menu (only F1-F3)
                 if fkey_num <= 3:
                     active_menu = f"F{fkey_num}"
+        elif event.key == pygame.K_TAB:
+            # Tab key cycles through panels
+            panels = ["editor", "files", "inbox"]
+            current_idx = panels.index(active_panel)
+            next_idx = (current_idx + 1) % len(panels)
+            switch_panel(panels[next_idx])
+        elif active_panel in ("files", "inbox"):
+            # Navigate within side panels
+            handle_panel_navigation(event)
         else:
             active_menu = None
-            handle_text_input(event)
+            if active_panel == "editor":
+                handle_text_input(event)
 
 
 def main():
@@ -746,7 +975,9 @@ def main():
                 boot_done = True
             draw_boot_screen()
         else:
-            draw_editor()
+            # Update file list periodically or on demand
+            scan_workspace_files()
+            draw_workspace()
 
     pygame.quit()
     sys.exit()
