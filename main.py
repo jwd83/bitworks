@@ -29,6 +29,7 @@ FONT = pygame.font.Font(pygame.font.match_font("couriernew", bold=True), font_si
 BIGFONT = pygame.font.Font(
     pygame.font.match_font("couriernew", bold=True), big_font_size
 )
+STATUS_BAR_HEIGHT = font_size + 8  # Height of status bar at bottom
 clock = pygame.time.Clock()
 
 # Colors
@@ -78,7 +79,8 @@ clipboard = ""  # Simple clipboard storage
 # Workspace layout
 LEFT_PANEL_WIDTH = WIDTH // 3  # Left third for browser and inbox
 FILE_BROWSER_HEIGHT = HEIGHT // 2  # Top half of left panel
-INBOX_HEIGHT = HEIGHT - FILE_BROWSER_HEIGHT  # Bottom half of left panel
+# Bottom half of left panel, accounting for status bar
+INBOX_HEIGHT = HEIGHT - FILE_BROWSER_HEIGHT - STATUS_BAR_HEIGHT
 EDITOR_WIDTH = WIDTH - LEFT_PANEL_WIDTH  # Right two-thirds for editor
 EDITOR_X_OFFSET = LEFT_PANEL_WIDTH  # Editor starts after left panel
 
@@ -457,7 +459,8 @@ def get_editor_max_visible_lines():
     """Calculate how many lines can fit in the editor viewport"""
     line_height = font_size + 4
     header_height = line_height + 4
-    available_height = HEIGHT - (font_size + 14) - header_height - 10  # menu_height - header - margin
+    menu_height = font_size + 14
+    available_height = HEIGHT - menu_height - header_height - 10 - STATUS_BAR_HEIGHT  # Total minus menu, header, margin, and status bar
     return max(1, available_height // line_height)
 
 
@@ -839,21 +842,18 @@ def draw_workspace():
     # Draw file browser (top-left)
     draw_file_browser(menu_height, FILE_BROWSER_HEIGHT, line_height)
 
-    # Draw email inbox (bottom-left)
-    draw_email_inbox(FILE_BROWSER_HEIGHT, HEIGHT, line_height)
+    # Draw email inbox (bottom-left, above status bar)
+    draw_email_inbox(FILE_BROWSER_HEIGHT, HEIGHT - STATUS_BAR_HEIGHT, line_height)
 
-    # Draw text editor (right two-thirds)
+    # Draw text editor (right two-thirds, adjusted for status bar)
+    editor_height = HEIGHT - menu_height - STATUS_BAR_HEIGHT
     draw_text_editor(
-        EDITOR_X_OFFSET, menu_height, EDITOR_WIDTH, HEIGHT - menu_height, line_height
+        EDITOR_X_OFFSET, menu_height, EDITOR_WIDTH, editor_height, line_height
     )
-
-    # Draw status text in bottom-right corner (if no modal is open)
+    
+    # Draw status bar (only if no modal is open)
     if not show_email_modal:
-        status_text = f"File: {current_file} | Panel: {active_panel.title()}"
-        status_surface = FONT.render(status_text, True, GREEN)
-        status_rect = status_surface.get_rect()
-        status_rect.bottomright = (WIDTH - 10, HEIGHT - 10)
-        screen.blit(status_surface, status_rect)
+        draw_status_bar()
 
     # Draw email modal if active (on top of everything)
     draw_email_modal()
@@ -1167,10 +1167,11 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
     header_text = FONT.render(f"EDITOR - {current_file}{readonly_status}", True, GREEN)
     screen.blit(header_text, (x_start + 5, y_start + 2))
 
-    # Text area
+    # Text area (reserve space for status bar)
     text_y_start = y_start + header_height + 5
     text_x_margin = x_start + 10
-    max_lines = (height - header_height - 10) // line_height
+    available_text_height = height - header_height - 10 - STATUS_BAR_HEIGHT
+    max_lines = available_text_height // line_height
     
     # Calculate which lines to display based on scroll offset
     start_line = editor_scroll_offset
@@ -1245,11 +1246,11 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
 
 def draw_editor_scroll_indicators(x_start, y_start, width, height, header_height, max_visible_lines):
     """Draw scroll indicators for the text editor"""
-    # Scroll bar area (right side of editor)
+    # Scroll bar area (right side of editor, above status bar)
     scroll_bar_x = x_start + width - 20
     scroll_bar_y = y_start + header_height + 5
     scroll_bar_width = 12
-    scroll_bar_height = height - header_height - 10
+    scroll_bar_height = height - header_height - 10 - STATUS_BAR_HEIGHT
     
     # Draw scroll bar background
     pygame.draw.rect(screen, GRAY, (scroll_bar_x, scroll_bar_y, scroll_bar_width, scroll_bar_height))
@@ -1266,16 +1267,48 @@ def draw_editor_scroll_indicators(x_start, y_start, width, height, header_height
         
         # Draw scroll thumb
         pygame.draw.rect(screen, GREEN, (scroll_bar_x, thumb_y, scroll_bar_width, thumb_height))
+
+
+def draw_status_bar():
+    """Draw the status bar at the bottom of the screen"""
+    status_y = HEIGHT - STATUS_BAR_HEIGHT
+    
+    # Draw status bar background
+    pygame.draw.rect(screen, MENU_BG, (0, status_y, WIDTH, STATUS_BAR_HEIGHT))
+    pygame.draw.line(screen, GREEN, (0, status_y), (WIDTH, status_y), 1)  # Top border
+    
+    # Left side: File info
+    readonly_status = " (READ-ONLY)" if file_read_only else ""
+    file_info = f"File: {current_file}{readonly_status}"
+    file_surface = FONT.render(file_info, True, GREEN)
+    screen.blit(file_surface, (10, status_y + 4))
+    
+    # Center: Panel info
+    panel_info = f"Panel: {active_panel.title()}"
+    panel_surface = FONT.render(panel_info, True, GREEN)
+    panel_x = (WIDTH - panel_surface.get_width()) // 2
+    screen.blit(panel_surface, (panel_x, status_y + 4))
+    
+    # Right side: Editor scroll info (only if editor is active and has scrollable content)
+    if active_panel == "editor" and len(text_buffer) > get_editor_max_visible_lines():
+        max_visible = get_editor_max_visible_lines()
+        current_line = cursor_y + 1
+        total_lines = len(text_buffer)
+        visible_start = editor_scroll_offset + 1
+        visible_end = min(editor_scroll_offset + max_visible, total_lines)
         
-        # Draw scroll position text
-        scroll_text = f"{editor_scroll_offset + 1}-{min(editor_scroll_offset + max_visible_lines, total_lines)} of {total_lines}"
-        scroll_surface = FONT.render(scroll_text, True, GREEN)
-        scroll_rect = scroll_surface.get_rect()
-        scroll_rect.bottomright = (x_start + width - 25, y_start + height - 5)
-        
-        # Draw background behind scroll text for visibility
-        pygame.draw.rect(screen, BLACK, (scroll_rect.x - 2, scroll_rect.y - 1, scroll_rect.width + 4, scroll_rect.height + 2))
-        screen.blit(scroll_surface, scroll_rect)
+        scroll_info = f"Line {current_line}/{total_lines} | View {visible_start}-{visible_end}"
+        scroll_surface = FONT.render(scroll_info, True, GREEN)
+        scroll_x = WIDTH - scroll_surface.get_width() - 10
+        screen.blit(scroll_surface, (scroll_x, status_y + 4))
+    elif active_panel == "editor":
+        # Show simple line info when not scrollable
+        current_line = cursor_y + 1
+        total_lines = len(text_buffer)
+        line_info = f"Line {current_line}/{total_lines}"
+        line_surface = FONT.render(line_info, True, GREEN)
+        line_x = WIDTH - line_surface.get_width() - 10
+        screen.blit(line_surface, (line_x, status_y + 4))
 
 
 def draw_cursor(text_x_margin, text_y_start, line_height):
