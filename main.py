@@ -86,6 +86,9 @@ EDITOR_X_OFFSET = LEFT_PANEL_WIDTH  # Editor starts after left panel
 emails = []  # Will be loaded from files
 current_level = 1  # Current game level
 
+# Text editor scroll state
+editor_scroll_offset = 0  # Current vertical scroll position in editor
+
 # File browser state
 workspace_files = []
 selected_file_index = 0
@@ -172,7 +175,7 @@ def save_file():
 
 def load_file():
     """Load text from the current level file if it exists"""
-    global text_buffer, cursor_x, cursor_y, current_file, file_read_only
+    global text_buffer, cursor_x, cursor_y, current_file, file_read_only, editor_scroll_offset
     try:
         file_path = os.path.join("workspace", current_file)
         if os.path.exists(file_path):
@@ -183,6 +186,7 @@ def load_file():
                 else:
                     text_buffer = [""]
                 cursor_x, cursor_y = 0, 0
+                editor_scroll_offset = 0  # Reset scroll position
                 file_read_only = is_file_read_only(current_file)
                 return True
         return False
@@ -193,9 +197,10 @@ def load_file():
 
 def new_file():
     """Clear the text buffer for a new file"""
-    global text_buffer, cursor_x, cursor_y
+    global text_buffer, cursor_x, cursor_y, editor_scroll_offset
     text_buffer = [""]
     cursor_x, cursor_y = 0, 0
+    editor_scroll_offset = 0  # Reset scroll position
     clear_selection()
 
 
@@ -222,7 +227,7 @@ def scan_workspace_files():
 
 def load_file_by_name(filename):
     """Load a specific file by name"""
-    global text_buffer, cursor_x, cursor_y, current_file, file_read_only
+    global text_buffer, cursor_x, cursor_y, current_file, file_read_only, editor_scroll_offset
     try:
         ensure_workspace_dir()
         file_path = os.path.join("workspace", filename)
@@ -234,10 +239,11 @@ def load_file_by_name(filename):
                 else:
                     text_buffer = [""]
                 cursor_x, cursor_y = 0, 0
+                editor_scroll_offset = 0  # Reset scroll position
                 current_file = filename
                 file_read_only = is_file_read_only(filename)
                 clear_selection()
-                readonly_status = " (READ-ONLY)" if file_read_only else ""
+                readonly_status = " (read-ONLY)" if file_read_only else ""
                 print(f"Loaded file: {filename}{readonly_status}")
                 return True
         else:
@@ -432,6 +438,44 @@ def scroll_email_modal(direction, amount=1):
             0, len(email_modal_content_lines) - email_modal_max_visible_lines
         )
         email_modal_scroll_offset = min(max_scroll, email_modal_scroll_offset + amount)
+
+
+def scroll_editor(direction, amount=1):
+    """Scroll the text editor up or down"""
+    global editor_scroll_offset
+    
+    if direction == "up":
+        editor_scroll_offset = max(0, editor_scroll_offset - amount)
+    elif direction == "down":
+        # Calculate max scroll based on available content vs visible area
+        # This will be calculated dynamically based on editor dimensions
+        max_scroll = max(0, len(text_buffer) - get_editor_max_visible_lines())
+        editor_scroll_offset = min(max_scroll, editor_scroll_offset + amount)
+
+
+def get_editor_max_visible_lines():
+    """Calculate how many lines can fit in the editor viewport"""
+    line_height = font_size + 4
+    header_height = line_height + 4
+    available_height = HEIGHT - (font_size + 14) - header_height - 10  # menu_height - header - margin
+    return max(1, available_height // line_height)
+
+
+def ensure_cursor_visible():
+    """Ensure the cursor is visible by adjusting scroll offset if needed"""
+    global editor_scroll_offset
+    
+    max_visible_lines = get_editor_max_visible_lines()
+    
+    # If cursor is above visible area, scroll up to show it
+    if cursor_y < editor_scroll_offset:
+        editor_scroll_offset = cursor_y
+    
+    # If cursor is below visible area, scroll down to show it
+    elif cursor_y >= editor_scroll_offset + max_visible_lines:
+        editor_scroll_offset = cursor_y - max_visible_lines + 1
+        # Ensure we don't scroll past the beginning
+        editor_scroll_offset = max(0, editor_scroll_offset)
 
 
 def handle_panel_navigation(event):
@@ -1113,7 +1157,7 @@ def draw_message_preview(y_start, y_end, line_height):
 
 
 def draw_text_editor(x_start, y_start, width, height, line_height):
-    """Draw the text editor panel"""
+    """Draw the text editor panel with scrolling support"""
     # Panel header
     header_height = line_height + 4
     header_bg = MENU_BG if active_panel == "editor" else GRAY
@@ -1127,7 +1171,11 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
     text_y_start = y_start + header_height + 5
     text_x_margin = x_start + 10
     max_lines = (height - header_height - 10) // line_height
-
+    
+    # Calculate which lines to display based on scroll offset
+    start_line = editor_scroll_offset
+    end_line = min(start_line + max_lines, len(text_buffer))
+    
     # Draw text with selection highlighting (only if editor is active)
     bounds = (
         get_selection_bounds()
@@ -1135,15 +1183,16 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
         else None
     )
 
-    for y, line in enumerate(text_buffer[:max_lines]):
-        line_y = text_y_start + y * line_height
+    for display_y, buffer_y in enumerate(range(start_line, end_line)):
+        line = text_buffer[buffer_y]
+        line_y = text_y_start + display_y * line_height
 
         # Draw selection background if this line is selected
         if bounds:
             start_x, start_y, end_x, end_y = bounds
-            if start_y <= y <= end_y:
+            if start_y <= buffer_y <= end_y:
                 # Calculate selection bounds for this line
-                if y == start_y and y == end_y:
+                if buffer_y == start_y and buffer_y == end_y:
                     sel_start = (
                         text_x_margin + FONT.size(line[:start_x])[0]
                         if line
@@ -1154,7 +1203,7 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
                         if line
                         else text_x_margin
                     )
-                elif y == start_y:
+                elif buffer_y == start_y:
                     sel_start = (
                         text_x_margin + FONT.size(line[:start_x])[0]
                         if line
@@ -1163,7 +1212,7 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
                     sel_end = (
                         text_x_margin + FONT.size(line)[0] if line else text_x_margin
                     )
-                elif y == end_y:
+                elif buffer_y == end_y:
                     sel_start = text_x_margin
                     sel_end = (
                         text_x_margin + FONT.size(line[:end_x])[0]
@@ -1184,10 +1233,49 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
         # Draw text
         text = FONT.render(line, True, GREEN)
         screen.blit(text, (text_x_margin, line_y))
+    
+    # Draw scroll indicators if there's more content than visible
+    if len(text_buffer) > max_lines:
+        draw_editor_scroll_indicators(x_start, y_start, width, height, header_height, max_lines)
 
     # Draw cursor (only if editor is active)
     if active_panel == "editor":
         draw_cursor(text_x_margin, text_y_start, line_height)
+
+
+def draw_editor_scroll_indicators(x_start, y_start, width, height, header_height, max_visible_lines):
+    """Draw scroll indicators for the text editor"""
+    # Scroll bar area (right side of editor)
+    scroll_bar_x = x_start + width - 20
+    scroll_bar_y = y_start + header_height + 5
+    scroll_bar_width = 12
+    scroll_bar_height = height - header_height - 10
+    
+    # Draw scroll bar background
+    pygame.draw.rect(screen, GRAY, (scroll_bar_x, scroll_bar_y, scroll_bar_width, scroll_bar_height))
+    
+    # Calculate scroll thumb position and size
+    total_lines = len(text_buffer)
+    if total_lines > max_visible_lines:
+        thumb_height = max(10, int(scroll_bar_height * max_visible_lines / total_lines))
+        thumb_y = scroll_bar_y + int(scroll_bar_height * editor_scroll_offset / total_lines)
+        
+        # Ensure thumb doesn't go past the bottom
+        if thumb_y + thumb_height > scroll_bar_y + scroll_bar_height:
+            thumb_y = scroll_bar_y + scroll_bar_height - thumb_height
+        
+        # Draw scroll thumb
+        pygame.draw.rect(screen, GREEN, (scroll_bar_x, thumb_y, scroll_bar_width, thumb_height))
+        
+        # Draw scroll position text
+        scroll_text = f"{editor_scroll_offset + 1}-{min(editor_scroll_offset + max_visible_lines, total_lines)} of {total_lines}"
+        scroll_surface = FONT.render(scroll_text, True, GREEN)
+        scroll_rect = scroll_surface.get_rect()
+        scroll_rect.bottomright = (x_start + width - 25, y_start + height - 5)
+        
+        # Draw background behind scroll text for visibility
+        pygame.draw.rect(screen, BLACK, (scroll_rect.x - 2, scroll_rect.y - 1, scroll_rect.width + 4, scroll_rect.height + 2))
+        screen.blit(scroll_surface, scroll_rect)
 
 
 def draw_cursor(text_x_margin, text_y_start, line_height):
@@ -1196,6 +1284,11 @@ def draw_cursor(text_x_margin, text_y_start, line_height):
     
     if cursor_y >= len(text_buffer):
         return
+    
+    # Check if cursor is in visible area
+    max_visible_lines = get_editor_max_visible_lines()
+    if cursor_y < editor_scroll_offset or cursor_y >= editor_scroll_offset + max_visible_lines:
+        return  # Cursor is not visible, don't draw it
         
     # Update cursor timer
     cursor_timer += clock.get_time()
@@ -1208,9 +1301,9 @@ def draw_cursor(text_x_margin, text_y_start, line_height):
     if cursor_timer >= fade_cycle_duration:
         cursor_timer = 0
     
-    # Calculate cursor position
+    # Calculate cursor position (adjusted for scroll)
     cx = text_x_margin + FONT.size(text_buffer[cursor_y][:cursor_x])[0]
-    cy = text_y_start + cursor_y * line_height
+    cy = text_y_start + (cursor_y - editor_scroll_offset) * line_height
     cursor_width = max(2, font_size // 9)
     
     # Calculate fade opacity with smoother easing
@@ -1441,6 +1534,18 @@ def handle_text_input(event):
         cursor_x = 0
     elif event.key == pygame.K_END:
         cursor_x = len(text_buffer[cursor_y])
+    elif event.key == pygame.K_PAGEUP:
+        # Page up - move cursor up by visible page size
+        max_visible_lines = get_editor_max_visible_lines()
+        page_size = max(1, max_visible_lines - 1)  # Leave one line overlap
+        cursor_y = max(0, cursor_y - page_size)
+        cursor_x = min(cursor_x, len(text_buffer[cursor_y]))
+    elif event.key == pygame.K_PAGEDOWN:
+        # Page down - move cursor down by visible page size
+        max_visible_lines = get_editor_max_visible_lines()
+        page_size = max(1, max_visible_lines - 1)  # Leave one line overlap
+        cursor_y = min(len(text_buffer) - 1, cursor_y + page_size)
+        cursor_x = min(cursor_x, len(text_buffer[cursor_y]))
     elif event.unicode.isprintable():
         if file_read_only:
             print(f"Cannot edit: {current_file} is read-only")
@@ -1458,6 +1563,10 @@ def handle_text_input(event):
         # Clear selection if Shift is not pressed and cursor moved
         if (cursor_x != old_cursor_x or cursor_y != old_cursor_y) and selection_active:
             clear_selection()
+    
+    # Ensure cursor is visible after any movement
+    if cursor_x != old_cursor_x or cursor_y != old_cursor_y:
+        ensure_cursor_visible()
 
 
 def process_key_event(event):
