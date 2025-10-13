@@ -21,13 +21,13 @@
 //
 //==============================================================
 
-module not_using_nand (
+module myNOT (
     input  logic inA,   // Input signal to be inverted
     output logic outY   // Output: inverted version of inA
 );
 
     // Instantiate the NAND gate module from nand.sv
-    nand_gate u_nand (
+    myNAND u_nand (
         .inA(inA),   // Connect both inputs to inA
         .inB(inA),
         .outY(outY)  // Output of NAND becomes NOT output

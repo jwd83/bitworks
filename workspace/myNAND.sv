@@ -21,7 +21,7 @@
 // In Boolean algebra: outY = NOT (inA AND inB)
 //==============================================================
 
-module nand_gate (
+module myNAND (
     input  logic inA,   // Input A
     input  logic inB,   // Input B
     output logic outY   // Output Y (NAND result)
