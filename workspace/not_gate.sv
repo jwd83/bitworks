@@ -1,13 +1,3 @@
-/*
-
-This SystemVerilog file defines a simple inverter module using a NAND gate.
-The inverter takes a single input and produces an output that is the logical
-NOT of the input (reverse). The NAND gate is instantiated within the inverter
-module, with both of its inputs tied to the same input signal to achieve the
-inversion.
-
-*/
-
 // ------------------- NOT Gate Using NAND -------------------
 // Function: Inverts a single input
 // Truth table:
