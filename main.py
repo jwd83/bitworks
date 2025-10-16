@@ -1,4 +1,5 @@
 import pygame, sys, time, random, os
+from crt_filter import CrtFilter
 
 pygame.init()
 pygame.mixer.init()
@@ -19,8 +20,22 @@ else:
     HEIGHT = int(screen_width / aspect_ratio)
 
 # Create fullscreen display
-screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+
+# Request an OpenGL 3.3 Core Profile context BEFORE creating the window
+pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MAJOR_VERSION, 3)
+pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 3)
+pygame.display.gl_set_attribute(
+    pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE
+)
+screen = pygame.display.set_mode(
+    (WIDTH, HEIGHT), pygame.FULLSCREEN | pygame.OPENGL | pygame.DOUBLEBUF
+)
 pygame.display.set_caption("Retro PC Boot - Text Editor")
+# force a frame to render for opengl to start
+pygame.display.flip()
+frame = pygame.Surface((WIDTH, HEIGHT))
+crt = CrtFilter(screen)
+
 
 # Scale fonts based on screen size (larger fonts for bigger screens)
 font_size = max(18, WIDTH // 60)  # Scale font with screen width
@@ -445,7 +460,7 @@ def scroll_email_modal(direction, amount=1):
 def scroll_editor(direction, amount=1):
     """Scroll the text editor up or down"""
     global editor_scroll_offset
-    
+
     if direction == "up":
         editor_scroll_offset = max(0, editor_scroll_offset - amount)
     elif direction == "down":
@@ -460,20 +475,22 @@ def get_editor_max_visible_lines():
     line_height = font_size + 4
     header_height = line_height + 4
     menu_height = font_size + 14
-    available_height = HEIGHT - menu_height - header_height - 10 - STATUS_BAR_HEIGHT  # Total minus menu, header, margin, and status bar
+    available_height = (
+        HEIGHT - menu_height - header_height - 10 - STATUS_BAR_HEIGHT
+    )  # Total minus menu, header, margin, and status bar
     return max(1, available_height // line_height)
 
 
 def ensure_cursor_visible():
     """Ensure the cursor is visible by adjusting scroll offset if needed"""
     global editor_scroll_offset
-    
+
     max_visible_lines = get_editor_max_visible_lines()
-    
+
     # If cursor is above visible area, scroll up to show it
     if cursor_y < editor_scroll_offset:
         editor_scroll_offset = cursor_y
-    
+
     # If cursor is below visible area, scroll down to show it
     elif cursor_y >= editor_scroll_offset + max_visible_lines:
         editor_scroll_offset = cursor_y - max_visible_lines + 1
@@ -813,8 +830,6 @@ def draw_boot_screen():
     skip_rect.bottomright = (WIDTH - 10, HEIGHT - 10)
     screen.blit(skip_surface, skip_rect)
 
-    pygame.display.flip()
-
 
 def draw_workspace():
     """Draw the multi-column workspace layout"""
@@ -850,21 +865,19 @@ def draw_workspace():
     draw_text_editor(
         EDITOR_X_OFFSET, menu_height, EDITOR_WIDTH, editor_height, line_height
     )
-    
+
     # Draw status bar (only if no modal is open)
     if not show_email_modal:
         draw_status_bar()
 
     # Draw email modal if active (on top of everything)
     draw_email_modal()
-    
+
     # Draw dropdown menus last so they appear above everything else
     if active_menu:
         x_margin = WIDTH // 50
         menu_spacing = WIDTH // 8
         draw_dropdown_menu(menu_height, x_margin, menu_spacing)
-
-    pygame.display.flip()
 
 
 def draw_menu_bar(menu_height):
@@ -891,17 +904,19 @@ def draw_dropdown_menu(menu_height, x_margin, menu_spacing):
     y = menu_height
     menu_item_height = font_size + 8
     menu_item_width = WIDTH // 8
-    
+
     # Calculate total menu height
     total_menu_height = len(menu_items) * menu_item_height
-    
+
     # Draw subtle shadow (offset by 2 pixels)
     shadow_color = (20, 20, 20)  # Very dark shadow
-    pygame.draw.rect(screen, shadow_color, (x + 2, y + 2, menu_item_width, total_menu_height))
-    
+    pygame.draw.rect(
+        screen, shadow_color, (x + 2, y + 2, menu_item_width, total_menu_height)
+    )
+
     # Draw menu background
     pygame.draw.rect(screen, BLACK, (x, y, menu_item_width, total_menu_height))
-    
+
     # Draw menu border
     pygame.draw.rect(screen, GREEN, (x, y, menu_item_width, total_menu_height), 2)
 
@@ -909,13 +924,17 @@ def draw_dropdown_menu(menu_height, x_margin, menu_spacing):
     current_y = y
     for i, item in enumerate(menu_items):
         # Draw item background (darker gray for individual items)
-        pygame.draw.rect(screen, GRAY, (x + 2, current_y + 2, menu_item_width - 4, menu_item_height - 2))
-        
+        pygame.draw.rect(
+            screen,
+            GRAY,
+            (x + 2, current_y + 2, menu_item_width - 4, menu_item_height - 2),
+        )
+
         # Draw item text
         fkey_text = f"F{i+1}-{item}"
         t = FONT.render(fkey_text, True, GREEN)
         screen.blit(t, (x + 8, current_y + (menu_item_height - font_size) // 2))
-        
+
         current_y += menu_item_height
 
 
@@ -1172,11 +1191,11 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
     text_x_margin = x_start + 10
     available_text_height = height - header_height - 10 - STATUS_BAR_HEIGHT
     max_lines = available_text_height // line_height
-    
+
     # Calculate which lines to display based on scroll offset
     start_line = editor_scroll_offset
     end_line = min(start_line + max_lines, len(text_buffer))
-    
+
     # Draw text with selection highlighting (only if editor is active)
     bounds = (
         get_selection_bounds()
@@ -1234,61 +1253,71 @@ def draw_text_editor(x_start, y_start, width, height, line_height):
         # Draw text
         text = FONT.render(line, True, GREEN)
         screen.blit(text, (text_x_margin, line_y))
-    
+
     # Draw scroll indicators if there's more content than visible
     if len(text_buffer) > max_lines:
-        draw_editor_scroll_indicators(x_start, y_start, width, height, header_height, max_lines)
+        draw_editor_scroll_indicators(
+            x_start, y_start, width, height, header_height, max_lines
+        )
 
     # Draw cursor (only if editor is active)
     if active_panel == "editor":
         draw_cursor(text_x_margin, text_y_start, line_height)
 
 
-def draw_editor_scroll_indicators(x_start, y_start, width, height, header_height, max_visible_lines):
+def draw_editor_scroll_indicators(
+    x_start, y_start, width, height, header_height, max_visible_lines
+):
     """Draw scroll indicators for the text editor"""
     # Scroll bar area (right side of editor, above status bar)
     scroll_bar_x = x_start + width - 20
     scroll_bar_y = y_start + header_height + 5
     scroll_bar_width = 12
     scroll_bar_height = height - header_height - 10 - STATUS_BAR_HEIGHT
-    
+
     # Draw scroll bar background
-    pygame.draw.rect(screen, GRAY, (scroll_bar_x, scroll_bar_y, scroll_bar_width, scroll_bar_height))
-    
+    pygame.draw.rect(
+        screen, GRAY, (scroll_bar_x, scroll_bar_y, scroll_bar_width, scroll_bar_height)
+    )
+
     # Calculate scroll thumb position and size
     total_lines = len(text_buffer)
     if total_lines > max_visible_lines:
         thumb_height = max(10, int(scroll_bar_height * max_visible_lines / total_lines))
-        thumb_y = scroll_bar_y + int(scroll_bar_height * editor_scroll_offset / total_lines)
-        
+        thumb_y = scroll_bar_y + int(
+            scroll_bar_height * editor_scroll_offset / total_lines
+        )
+
         # Ensure thumb doesn't go past the bottom
         if thumb_y + thumb_height > scroll_bar_y + scroll_bar_height:
             thumb_y = scroll_bar_y + scroll_bar_height - thumb_height
-        
+
         # Draw scroll thumb
-        pygame.draw.rect(screen, GREEN, (scroll_bar_x, thumb_y, scroll_bar_width, thumb_height))
+        pygame.draw.rect(
+            screen, GREEN, (scroll_bar_x, thumb_y, scroll_bar_width, thumb_height)
+        )
 
 
 def draw_status_bar():
     """Draw the status bar at the bottom of the screen"""
     status_y = HEIGHT - STATUS_BAR_HEIGHT
-    
+
     # Draw status bar background
     pygame.draw.rect(screen, MENU_BG, (0, status_y, WIDTH, STATUS_BAR_HEIGHT))
     pygame.draw.line(screen, GREEN, (0, status_y), (WIDTH, status_y), 1)  # Top border
-    
+
     # Left side: File info
     readonly_status = " (READ-ONLY)" if file_read_only else ""
     file_info = f"File: {current_file}{readonly_status}"
     file_surface = FONT.render(file_info, True, GREEN)
     screen.blit(file_surface, (10, status_y + 4))
-    
+
     # Center: Panel info
     panel_info = f"Panel: {active_panel.title()}"
     panel_surface = FONT.render(panel_info, True, GREEN)
     panel_x = (WIDTH - panel_surface.get_width()) // 2
     screen.blit(panel_surface, (panel_x, status_y + 4))
-    
+
     # Right side: Editor scroll info (only if editor is active and has scrollable content)
     if active_panel == "editor" and len(text_buffer) > get_editor_max_visible_lines():
         max_visible = get_editor_max_visible_lines()
@@ -1296,8 +1325,10 @@ def draw_status_bar():
         total_lines = len(text_buffer)
         visible_start = editor_scroll_offset + 1
         visible_end = min(editor_scroll_offset + max_visible, total_lines)
-        
-        scroll_info = f"Line {current_line}/{total_lines} | View {visible_start}-{visible_end}"
+
+        scroll_info = (
+            f"Line {current_line}/{total_lines} | View {visible_start}-{visible_end}"
+        )
         scroll_surface = FONT.render(scroll_info, True, GREEN)
         scroll_x = WIDTH - scroll_surface.get_width() - 10
         screen.blit(scroll_surface, (scroll_x, status_y + 4))
@@ -1314,55 +1345,62 @@ def draw_status_bar():
 def draw_cursor(text_x_margin, text_y_start, line_height):
     """Draw the text cursor with CRT-style fade effect"""
     global cursor_timer
-    
+
     if cursor_y >= len(text_buffer):
         return
-    
+
     # Check if cursor is in visible area
     max_visible_lines = get_editor_max_visible_lines()
-    if cursor_y < editor_scroll_offset or cursor_y >= editor_scroll_offset + max_visible_lines:
+    if (
+        cursor_y < editor_scroll_offset
+        or cursor_y >= editor_scroll_offset + max_visible_lines
+    ):
         return  # Cursor is not visible, don't draw it
-        
+
     # Update cursor timer
     cursor_timer += clock.get_time()
-    
+
     # Full fade cycle: 1200ms for slower, more CRT-like timing
     fade_cycle_duration = 1200
     fade_duration = 600  # Time for fade out or fade in
-    
+
     # Reset timer after full cycle
     if cursor_timer >= fade_cycle_duration:
         cursor_timer = 0
-    
+
     # Calculate cursor position (adjusted for scroll)
     cx = text_x_margin + FONT.size(text_buffer[cursor_y][:cursor_x])[0]
     cy = text_y_start + (cursor_y - editor_scroll_offset) * line_height
     cursor_width = max(2, font_size // 9)
-    
+
     # Calculate fade opacity with smoother easing
     if cursor_timer <= fade_duration:
         # First half: fade out (1.0 -> 0.05) with ease-in
         progress = cursor_timer / fade_duration
         # Use sine wave for smoother transition
-        eased_progress = (1 - __import__('math').cos(progress * __import__('math').pi)) / 2
+        eased_progress = (
+            1 - __import__("math").cos(progress * __import__("math").pi)
+        ) / 2
         opacity = 1.0 - (eased_progress * 0.95)  # Fade from 1.0 to 0.05
     else:
         # Second half: fade in (0.05 -> 1.0) with ease-out
         progress = (cursor_timer - fade_duration) / fade_duration
         # Use sine wave for smoother transition
-        eased_progress = (1 - __import__('math').cos(progress * __import__('math').pi)) / 2
+        eased_progress = (
+            1 - __import__("math").cos(progress * __import__("math").pi)
+        ) / 2
         opacity = 0.05 + (eased_progress * 0.95)  # Fade from 0.05 to 1.0
-    
+
     # Ensure opacity stays in valid range
     opacity = max(0.05, min(opacity, 1.0))
-    
+
     # Calculate faded color
     faded_color = (
         int(GREEN[0] * opacity),
         int(GREEN[1] * opacity),
         int(GREEN[2] * opacity),
     )
-    
+
     # Draw cursor with faded color and slight glow effect
     # Draw a slightly larger, more transparent cursor behind for glow
     if opacity > 0.3:  # Only add glow when cursor is relatively bright
@@ -1373,8 +1411,10 @@ def draw_cursor(text_x_margin, text_y_start, line_height):
             int(GREEN[2] * glow_opacity),
         )
         # Draw glow (larger, more transparent)
-        pygame.draw.rect(screen, glow_color, (cx - 1, cy - 1, cursor_width * 5 + 2, font_size + 2), 1)
-    
+        pygame.draw.rect(
+            screen, glow_color, (cx - 1, cy - 1, cursor_width * 5 + 2, font_size + 2), 1
+        )
+
     # Draw main cursor
     pygame.draw.rect(screen, faded_color, (cx, cy, cursor_width * 5, font_size), 1)
 
@@ -1596,7 +1636,7 @@ def handle_text_input(event):
         # Clear selection if Shift is not pressed and cursor moved
         if (cursor_x != old_cursor_x or cursor_y != old_cursor_y) and selection_active:
             clear_selection()
-    
+
     # Ensure cursor is visible after any movement
     if cursor_x != old_cursor_x or cursor_y != old_cursor_y:
         ensure_cursor_visible()
@@ -1722,6 +1762,10 @@ def main():
             if not emails:  # Load emails only once
                 load_emails_for_level(current_level)
             draw_workspace()
+
+        # blit the screen to frame then apply the CRT filter for the final output
+        frame.blit(screen, (0, 0))
+        crt.draw(frame)
 
     pygame.quit()
     sys.exit()
